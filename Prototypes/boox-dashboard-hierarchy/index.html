@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>PROTOTYPE — CodexBar Ink dashboard hierarchy</title>
+  <!-- Three radically different Leaf3C dashboard variants, switchable via ?variant=A|B|C. -->
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #101010;
+      --paper: #f8f8f3;
+      --muted: #5b5b57;
+      --line: #242424;
+      --soft-line: #8b8b84;
+      --wash: #e7e7df;
+      --warning: #30302d;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-synthesis: none;
+      text-rendering: geometricPrecision;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body { margin: 0; min-height: 100%; }
+
+    body {
+      background: #c8c8c2;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+
+    button { font: inherit; }
+
+    .prototype-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .device {
+      width: min(1264px, calc(100vw - 48px));
+      aspect-ratio: 1264 / 1680;
+      overflow: hidden;
+      position: relative;
+      background: var(--paper);
+      border: 4px solid var(--ink);
+      box-shadow: 0 18px 50px rgb(0 0 0 / 20%);
+    }
+
+    body.landscape .device {
+      width: min(1680px, calc(100vw - 48px));
+      aspect-ratio: 1680 / 1264;
+    }
+
+    body.capture .prototype-shell { padding: 0; }
+    body.capture .device {
+      width: 1264px;
+      height: 1680px;
+      border: 0;
+      box-shadow: none;
+    }
+    body.capture.landscape .device { width: 1680px; height: 1264px; }
+
+    .variant {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: var(--paper);
+    }
+
+    .variant[hidden] { display: none; }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      font-size: 22px;
+      font-weight: 780;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+    }
+
+    .muted { color: var(--muted); }
+    .nowrap { white-space: nowrap; }
+
+    .bar {
+      height: 30px;
+      border: 3px solid var(--line);
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      width: var(--used);
+      background: var(--ink);
+    }
+
+    .bar.striped > span {
+      background: repeating-linear-gradient(
+        135deg,
+        var(--ink) 0,
+        var(--ink) 9px,
+        var(--paper) 9px,
+        var(--paper) 16px
+      );
+    }
+
+    .status-glyph {
+      display: inline-grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border: 3px solid currentColor;
+      border-radius: 50%;
+      font-size: 16px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .zone-badge {
+      display: none;
+      position: absolute;
+      z-index: 3;
+      right: 10px;
+      top: 8px;
+      padding: 4px 8px;
+      border: 2px dashed var(--ink);
+      background: var(--paper);
+      font: 700 16px/1 ui-monospace, monospace;
+    }
+
+    body.show-zones [data-refresh-zone] { outline: 3px dashed #555; outline-offset: -7px; }
+    body.show-zones .zone-badge { display: block; }
+
+    /* Variant A: portrait, priority stack, semantic card refresh regions. */
+    .variant-a {
+      display: grid;
+      grid-template-rows: 150px 1fr 1fr 342px 72px;
+      gap: 22px;
+      padding: 42px 42px 34px;
+    }
+
+    .a-header {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      padding-bottom: 22px;
+      border-bottom: 5px solid var(--ink);
+    }
+
+    .a-header h1 { margin: 0; font-size: 48px; line-height: 1; letter-spacing: -0.03em; }
+    .a-freshness { text-align: right; }
+    .a-freshness strong { display: block; font-size: 30px; }
+    .a-freshness span { display: block; margin-top: 5px; font-size: 22px; color: var(--muted); }
+
+    .provider-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 28px;
+      border: 4px solid var(--ink);
+      padding: 30px 32px;
+      background: var(--paper);
+    }
+
+    .provider-card.primary { border-left-width: 16px; }
+    .provider-name { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+    .provider-name h2 { margin: 0; font-size: 46px; line-height: 1; letter-spacing: -0.03em; }
+    .provider-name .plan { margin-top: 12px; font-size: 24px; font-weight: 700; }
+    .provider-name .updated { font-size: 22px; color: var(--muted); }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px 24px;
+      align-content: center;
+    }
+
+    .metric-label { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .metric-label span { font-size: 23px; font-weight: 760; }
+    .metric-label strong { font-size: 46px; line-height: 1; }
+    .metric small { display: block; min-height: 24px; margin-top: 8px; font-size: 19px; color: var(--muted); }
+
+    .a-secondary {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      border-top: 3px solid var(--line);
+      padding-top: 18px;
+    }
+
+    .a-secondary-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+
+    .a-secondary-title h3 { margin: 0; font-size: 28px; }
+    .a-secondary-title span { font-size: 20px; color: var(--muted); }
+
+    .provider-rows { display: grid; grid-template-rows: repeat(4, 1fr); border: 3px solid var(--line); }
+    .provider-row {
+      display: grid;
+      grid-template-columns: 210px 1fr 122px 180px;
+      align-items: center;
+      gap: 18px;
+      padding: 0 20px;
+      border-bottom: 2px solid var(--soft-line);
+      font-size: 22px;
+    }
+    .provider-row:last-child { border-bottom: 0; }
+    .provider-row strong { font-size: 27px; }
+    .provider-row .bar { height: 22px; border-width: 2px; }
+    .provider-row .percent { text-align: right; font-size: 26px; font-weight: 820; }
+    .provider-row .row-state { text-align: right; color: var(--muted); }
+    .provider-row.error { background: repeating-linear-gradient(135deg, #eee 0, #eee 12px, #fff 12px, #fff 24px); }
+
+    .a-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 3px solid var(--line);
+      font-size: 20px;
+      color: var(--muted);
+    }
+
+    /* Variant B: portrait, ledger/table; maximises simultaneous provider comparison. */
+    .variant-b { padding: 38px 34px 30px; }
+    .b-header {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      align-items: end;
+      min-height: 130px;
+      padding-bottom: 20px;
+      border-bottom: 6px double var(--ink);
+    }
+    .b-header h1 { margin: 0; font: 850 54px/0.95 Georgia, serif; }
+    .b-header p { margin: 10px 0 0; font-size: 22px; }
+    .b-sync { text-align: right; font-size: 24px; }
+    .b-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      margin-top: 24px;
+      border: 4px solid var(--ink);
+    }
+    .b-summary > div { min-height: 180px; padding: 26px; border-right: 3px solid var(--ink); }
+    .b-summary > div:last-child { border-right: 0; }
+    .b-summary span { display: block; font-size: 22px; font-weight: 760; }
+    .b-summary strong { display: block; margin-top: 12px; font: 850 64px/1 Georgia, serif; }
+    .b-summary small { display: block; margin-top: 10px; font-size: 18px; color: var(--muted); }
+
+    .ledger { width: 100%; margin-top: 24px; border-collapse: collapse; table-layout: fixed; }
+    .ledger th,
+    .ledger td { border: 2px solid var(--ink); padding: 16px 14px; text-align: left; vertical-align: middle; }
+    .ledger th { height: 70px; background: var(--ink); color: var(--paper); font-size: 20px; letter-spacing: 0.04em; }
+    .ledger td { height: 148px; font-size: 21px; }
+    .ledger .provider { width: 22%; }
+    .ledger .quota { width: 27%; }
+    .ledger .reset { width: 18%; }
+    .ledger .state { width: 19%; }
+    .ledger strong { display: block; font-size: 31px; }
+    .ledger small { display: block; margin-top: 8px; font-size: 18px; color: var(--muted); }
+    .ledger .quota-number { font-size: 34px; font-weight: 850; }
+    .ledger .microbar { margin-top: 10px; height: 18px; border: 2px solid var(--ink); }
+    .ledger .microbar span { display: block; height: 100%; width: var(--used); background: var(--ink); }
+    .ledger tr.stale td { background: #e7e7e1; }
+    .ledger tr.error td { background: repeating-linear-gradient(135deg, #ededeb 0, #ededeb 11px, #fff 11px, #fff 22px); }
+    .b-foot { display: flex; justify-content: space-between; margin-top: 18px; font-size: 19px; color: var(--muted); }
+
+    /* Variant C: landscape, one provider in focus; minimal redraw but navigation-dependent. */
+    .variant-c {
+      display: grid;
+      grid-template-columns: 330px 1fr;
+      min-height: 100%;
+      background: var(--paper);
+    }
+    .c-rail { padding: 34px 28px; background: var(--ink); color: var(--paper); }
+    .c-rail h1 { margin: 0; font-size: 40px; }
+    .c-rail .sync { margin: 12px 0 34px; font-size: 20px; color: #c8c8c2; }
+    .c-provider-list { display: grid; gap: 14px; }
+    .c-provider-button {
+      min-height: 104px;
+      width: 100%;
+      border: 3px solid var(--paper);
+      background: transparent;
+      color: var(--paper);
+      text-align: left;
+      padding: 16px 18px;
+      cursor: pointer;
+    }
+    .c-provider-button strong { display: block; font-size: 28px; }
+    .c-provider-button span { display: block; margin-top: 5px; font-size: 18px; color: #ccc; }
+    .c-provider-button.active { background: var(--paper); color: var(--ink); }
+    .c-provider-button.active span { color: var(--muted); }
+    .c-rail footer { position: absolute; bottom: 34px; left: 28px; font-size: 18px; color: #bbb; }
+
+    .c-focus { position: relative; display: grid; grid-template-rows: 146px 1fr 108px; padding: 38px 46px 32px; }
+    .c-head { display: flex; justify-content: space-between; align-items: end; border-bottom: 4px solid var(--ink); padding-bottom: 22px; }
+    .c-head h2 { margin: 0; font: 850 66px/0.95 Georgia, serif; }
+    .c-head .identity { text-align: right; font-size: 23px; }
+    .c-metrics { display: grid; grid-template-columns: 1fr 1fr 0.72fr; gap: 30px; align-items: stretch; padding: 34px 0; }
+    .c-metric { display: flex; flex-direction: column; justify-content: space-between; border: 4px solid var(--ink); padding: 34px; }
+    .c-metric h3 { margin: 0; font-size: 27px; }
+    .c-metric .giant { display: block; margin: auto 0; font: 900 132px/0.86 Georgia, serif; }
+    .c-metric .giant small { font-size: 42px; }
+    .c-metric p { margin: 18px 0 0; font-size: 21px; color: var(--muted); }
+    .c-metric .bar { height: 38px; }
+    .c-credits { background: var(--ink); color: var(--paper); }
+    .c-credits p { color: #c8c8c2; }
+    .c-status { display: flex; justify-content: space-between; align-items: center; border-top: 3px solid var(--ink); font-size: 21px; }
+    .c-status strong { font-size: 26px; }
+
+    .prototype-switcher {
+      position: fixed;
+      z-index: 50;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 74px minmax(280px, auto) 74px;
+      align-items: center;
+      overflow: hidden;
+      border: 4px solid white;
+      outline: 4px solid black;
+      border-radius: 999px;
+      background: black;
+      color: white;
+      box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+    }
+    .prototype-switcher button {
+      height: 64px;
+      border: 0;
+      background: white;
+      color: black;
+      font-size: 34px;
+      cursor: pointer;
+    }
+    .prototype-switcher output { padding: 0 24px; text-align: center; font-size: 19px; font-weight: 750; }
+    body.capture .prototype-switcher { display: none; }
+
+    @media print {
+      .prototype-switcher { display: none; }
+      .device { border: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="prototype-shell">
+    <div class="device" aria-live="polite">
+      <section id="variant-a" class="variant variant-a" aria-label="方案 A：优先级纵向栈"></section>
+      <section id="variant-b" class="variant variant-b" aria-label="方案 B：高密度额度账本" hidden></section>
+      <section id="variant-c" class="variant variant-c" aria-label="方案 C：横屏单 Provider 聚焦" hidden></section>
+    </div>
+  </main>
+
+  <nav class="prototype-switcher" aria-label="原型方案切换器">
+    <button id="previous" type="button" aria-label="上一个方案">←</button>
+    <output id="variant-label">A — 纵向优先栈</output>
+    <button id="next" type="button" aria-label="下一个方案">→</button>
+  </nav>
+
+  <script>
+    const variants = [
+      { key: "A", name: "纵向优先栈", orientation: "portrait" },
+      { key: "B", name: "额度账本", orientation: "portrait" },
+      { key: "C", name: "横屏聚焦", orientation: "landscape" },
+    ];
+
+    function VariantA() {
+      return `
+        <header class="a-header" data-refresh-zone="header">
+          <span class="zone-badge">header · full-safe</span>
+          <div>
+            <p class="eyebrow">CodexBar Ink</p>
+            <h1>额度一览</h1>
+          </div>
+          <div class="a-freshness">
+            <strong><span class="status-glyph">✓</span> 已同步</strong>
+            <span>15:42 · 下次约 15:47</span>
+          </div>
+        </header>
+
+        <article class="provider-card primary" data-refresh-zone="provider-codex">
+          <span class="zone-badge">provider:codex · REGAL/GU</span>
+          <div class="provider-name">
+            <div>
+              <p class="eyebrow">优先 01</p>
+              <h2>Codex</h2>
+              <div class="plan">Pro · redacted@example.com</div>
+            </div>
+            <div class="updated">数据更新于 15:41</div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label"><span>当前周期</span><strong>28%</strong></div>
+              <div class="bar" style="--used:28%"><span></span></div>
+              <small>17:15 重置 · 剩余 72%</small>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span>本周</span><strong>63%</strong></div>
+              <div class="bar striped" style="--used:63%"><span></span></div>
+              <small>周五 08:00 重置</small>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span>Credits</span><strong>112.4</strong></div>
+              <small>余额 · 仅数字变化时重绘</small>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span>今日费用</span><strong>$1.04</strong></div>
+              <small>近 30 天 $18.22</small>
+            </div>
+          </div>
+        </article>
+
+        <article class="provider-card primary" data-refresh-zone="provider-claude">
+          <span class="zone-badge">provider:claude · REGAL/GU</span>
+          <div class="provider-name">
+            <div>
+              <p class="eyebrow">优先 02</p>
+              <h2>Claude</h2>
+              <div class="plan">Max · redacted@example.net</div>
+            </div>
+            <div class="updated">数据更新于 15:40</div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label"><span>5 小时</span><strong>42%</strong></div>
+              <div class="bar" style="--used:42%"><span></span></div>
+              <small>18:05 重置 · 剩余 58%</small>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span>7 天</span><strong>71%</strong></div>
+              <div class="bar striped" style="--used:71%"><span></span></div>
+              <small>周六 00:00 重置</small>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span>Sonnet</span><strong>16%</strong></div>
+              <div class="bar" style="--used:16%"><span></span></div>
+              <small>Provider 专属窗口</small>
+            </div>
+            <div class="metric">
+              <div class="metric-label"><span>状态</span><strong>正常</strong></div>
+              <small>无错误 · 使用安全分类</small>
+            </div>
+          </div>
+        </article>
+
+        <section class="a-secondary" data-refresh-zone="provider-secondary">
+          <span class="zone-badge">secondary · grouped partial</span>
+          <div class="a-secondary-title">
+            <h3>其他 Provider</h3>
+            <span>按 Mac 配置顺序</span>
+          </div>
+          <div class="provider-rows">
+            <div class="provider-row">
+              <strong>Gemini</strong><div class="bar" style="--used:18%"><span></span></div>
+              <div class="percent">18%</div><div class="row-state">2 分钟前</div>
+            </div>
+            <div class="provider-row">
+              <strong>Copilot</strong><div class="bar striped" style="--used:54%"><span></span></div>
+              <div class="percent">54%</div><div class="row-state">4 分钟前</div>
+            </div>
+            <div class="provider-row">
+              <strong>Cursor</strong><div class="bar" style="--used:82%"><span></span></div>
+              <div class="percent">82%</div><div class="row-state">17 分钟前 · 陈旧</div>
+            </div>
+            <div class="provider-row error">
+              <strong>未知服务</strong><div>保留 last-good</div>
+              <div class="percent">—</div><div class="row-state">暂不可用</div>
+            </div>
+          </div>
+        </section>
+
+        <footer class="a-footer">
+          <span>前台每 5 分钟同步 · 语义变化才局刷</span>
+          <span>已局刷 08 次 · 清残阈值待真机</span>
+        </footer>`;
+    }
+
+    function VariantB() {
+      const rows = [
+        ["Codex", "Pro", "28% / 63%", "17:15 / 周五", "刚刚", "正常", "28%"],
+        ["Claude", "Max", "42% / 71%", "18:05 / 周六", "2 分钟", "正常", "42%"],
+        ["Gemini", "Standard", "18%", "明日 00:00", "2 分钟", "正常", "18%"],
+        ["Copilot", "Individual", "54%", "8 月 1 日", "4 分钟", "正常", "54%"],
+        ["Cursor", "Pro", "82%", "周日 00:00", "17 分钟", "陈旧", "82%"],
+        ["未知服务", "—", "—", "—", "25 分钟", "暂不可用", "0%"],
+      ];
+      return `
+        <header class="b-header" data-refresh-zone="ledger-header">
+          <div><p class="eyebrow">CodexBar Ink · Ledger</p><h1>使用额度账本</h1><p>所有 Provider 同屏比较</p></div>
+          <div class="b-sync"><strong>15:42 已同步</strong><br><span class="muted">下次约 15:47</span></div>
+        </header>
+        <section class="b-summary" data-refresh-zone="ledger-summary">
+          <div><span>最接近上限</span><strong>82%</strong><small>Cursor · 本周</small></div>
+          <div><span>需要留意</span><strong>2</strong><small>1 陈旧 · 1 不可用</small></div>
+          <div><span>今日费用</span><strong>$1.04</strong><small>已知 Provider 合计</small></div>
+        </section>
+        <table class="ledger" aria-label="Provider 使用额度表">
+          <thead><tr><th class="provider">Provider</th><th class="quota">使用量</th><th class="reset">重置</th><th>更新时间</th><th class="state">状态</th></tr></thead>
+          <tbody>${rows.map((row, index) => `
+            <tr class="${index === 4 ? "stale" : index === 5 ? "error" : ""}" data-refresh-zone="ledger-${index}">
+              <td><strong>${row[0]}</strong><small>${row[1]}</small></td>
+              <td><span class="quota-number">${row[2]}</span><div class="microbar" style="--used:${row[6]}"><span></span></div></td>
+              <td>${row[3]}</td><td>${row[4]}</td><td><strong>${row[5]}</strong></td>
+            </tr>`).join("")}</tbody>
+        </table>
+        <footer class="b-foot"><span>行级局刷 · 无颜色语义</span><span>全刷：冷启动 / 手动清残 / 真机标定阈值</span></footer>`;
+    }
+
+    function VariantC() {
+      return `
+        <aside class="c-rail">
+          <h1>CodexBar Ink</h1><p class="sync">15:42 已同步 · 5 分钟轮询</p>
+          <div class="c-provider-list" role="list" aria-label="Provider 列表">
+            <button class="c-provider-button active" type="button"><strong>Codex</strong><span>28% · 正常</span></button>
+            <button class="c-provider-button" type="button"><strong>Claude</strong><span>42% · 正常</span></button>
+            <button class="c-provider-button" type="button"><strong>Gemini</strong><span>18% · 正常</span></button>
+            <button class="c-provider-button" type="button"><strong>Copilot</strong><span>54% · 正常</span></button>
+            <button class="c-provider-button" type="button"><strong>Cursor</strong><span>82% · 陈旧</span></button>
+          </div>
+          <footer>← → 切换 Provider<br>实体翻页键不作为 MVP 前提</footer>
+        </aside>
+        <section class="c-focus" data-refresh-zone="focus-codex">
+          <span class="zone-badge">provider:codex · large partial</span>
+          <header class="c-head"><div><p class="eyebrow">优先 Provider</p><h2>Codex</h2></div><div class="identity"><strong>Pro</strong><br><span class="muted">redacted@example.com</span></div></header>
+          <div class="c-metrics">
+            <article class="c-metric"><h3>当前周期</h3><span class="giant">28<small>%</small></span><div class="bar" style="--used:28%"><span></span></div><p>17:15 重置 · 剩余 72%</p></article>
+            <article class="c-metric"><h3>本周</h3><span class="giant">63<small>%</small></span><div class="bar striped" style="--used:63%"><span></span></div><p>周五 08:00 重置</p></article>
+            <article class="c-metric c-credits"><h3>Credits</h3><span class="giant">112<small>.4</small></span><p>今日 $1.04<br>近 30 天 $18.22</p></article>
+          </div>
+          <footer class="c-status"><span><span class="status-glyph">✓</span> <strong>数据正常</strong> · 更新于 15:41</span><span>已局刷 08 次 · 清残阈值待真机</span></footer>
+        </section>`;
+    }
+
+    document.querySelector("#variant-a").innerHTML = VariantA();
+    document.querySelector("#variant-b").innerHTML = VariantB();
+    document.querySelector("#variant-c").innerHTML = VariantC();
+
+    const params = new URLSearchParams(window.location.search);
+    let current = Math.max(0, variants.findIndex((item) => item.key === (params.get("variant") || "A").toUpperCase()));
+
+    if (params.get("capture") === "1") document.body.classList.add("capture");
+    if (params.get("zones") === "1") document.body.classList.add("show-zones");
+
+    function renderVariant(nextIndex, replace = true) {
+      current = (nextIndex + variants.length) % variants.length;
+      const selected = variants[current];
+      for (const item of variants) {
+        document.querySelector(`#variant-${item.key.toLowerCase()}`).hidden = item.key !== selected.key;
+      }
+      document.body.classList.toggle("landscape", selected.orientation === "landscape");
+      document.querySelector("#variant-label").textContent = `${selected.key} — ${selected.name}`;
+      params.set("variant", selected.key);
+      const url = `${window.location.pathname}?${params.toString()}`;
+      if (replace) window.history.replaceState({ variant: selected.key }, "", url);
+      document.title = `PROTOTYPE — ${selected.key} ${selected.name}`;
+    }
+
+    document.querySelector("#previous").addEventListener("click", () => renderVariant(current - 1));
+    document.querySelector("#next").addEventListener("click", () => renderVariant(current + 1));
+    window.addEventListener("keydown", (event) => {
+      const target = event.target;
+      if (target.matches("input, textarea, [contenteditable='true']")) return;
+      if (event.key === "ArrowLeft") renderVariant(current - 1);
+      if (event.key === "ArrowRight") renderVariant(current + 1);
+    });
+    window.addEventListener("popstate", () => {
+      const key = new URLSearchParams(window.location.search).get("variant") || "A";
+      renderVariant(Math.max(0, variants.findIndex((item) => item.key === key.toUpperCase())), false);
+    });
+
+    renderVariant(current, false);
+  </script>
+</body>
+</html>
