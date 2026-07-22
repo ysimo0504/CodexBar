@@ -90,7 +90,8 @@
       "error": {
         "code": 1,
         "message": "Temporarily unavailable",
-        "kind": "provider"
+        "kind": "provider",
+        "reason": "provider-unavailable"
       },
       "updatedAt": "2026-07-22T23:58:00Z"
     },

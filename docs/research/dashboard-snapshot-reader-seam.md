@@ -1,6 +1,11 @@
 # Dashboard Snapshot seam for reader clients
 
-Last verified: 2026-07-22
+Last verified: 2026-07-23
+
+Hardening update: the Host now maps provider failures to stable reader-safe reasons and generic text,
+and maps top-level snapshot failures to stable safe codes. Synthetic wire tests cover token, Authorization,
+cookie, email, credential-path, query-secret, and response-body leakage. Historical findings below explain
+why this boundary was required.
 
 ## Question
 
@@ -39,14 +44,12 @@ Three current behaviors must be treated as deliberate MVP constraints:
    `--refresh-interval` cache;
 2. the route exposes a `status` slot, but its normal collection path does not currently request
    provider service status, so a reader must work correctly when `status` is always `null`.
-3. `error.message` is free-form `localizedDescription`. The schema contains no credential field,
-   but the host does not enforce or test that this free text can never contain a token, cookie,
-   account path, or other sensitive provider detail.
+3. `error.message` is now a Host-owned generic string paired with stable `reason`; raw
+   `localizedDescription` remains Mac-side. Readers should still render their own localized fallback.
 
-None blocks a controlled rendering spike. Before a personal trusted-LAN MVP reads real accounts,
-the host must enforce a display-safe error invariant; the reader must also never persist, log, or
-show raw `error.message`. This is required even on a trusted LAN because the current producer can
-put provider response content into the snapshot body.
+None blocks a controlled rendering spike. The host now enforces the display-safe error invariant
+required before a personal trusted-LAN MVP reads real accounts. The reader should still treat the
+message as display-only and never persist or log it; that keeps defense in depth at the client seam.
 
 ## Boundary and ownership
 
@@ -160,21 +163,19 @@ the whole card whenever `error != null`.
 The error object contains integer `code`, string `message`, and an optional `kind` classification
 ([`CLIErrorReporting.swift`, lines 4-15](https://github.com/ysimo0504/CodexBar/blob/main/Sources/CodexBarCLI/CLIErrorReporting.swift#L4-L15)).
 
-`ProviderErrorPayload.message` is populated directly from `error.localizedDescription`, and the
-dashboard builder forwards that payload unchanged
+The generic CLI `ProviderErrorPayload.message` is populated from `error.localizedDescription`, but the
+dashboard builder now projects it into a separate `DashboardErrorPayload` and never forwards the raw text
 ([`CLIErrorReporting.swift`, lines 11-22](https://github.com/ysimo0504/CodexBar/blob/main/Sources/CodexBarCLI/CLIErrorReporting.swift#L11-L22),
 [`DashboardSnapshotBuilder.swift`, lines 61-76](https://github.com/ysimo0504/CodexBar/blob/main/Sources/CodexBarCLI/DashboardSnapshotBuilder.swift#L61-L76)).
-This has a concrete unsafe source: a Claude OAuth server error incorporates up to 400 characters of
+The original risk had a concrete unsafe source: a Claude OAuth server error incorporates up to 400 characters of
 the response body into its localized description, and adjacent logging code explicitly avoids that
 description because response bodies can contain identifying information
 ([`ClaudeOAuthUsageFetcher.swift`, lines 21-39](https://github.com/ysimo0504/CodexBar/blob/main/Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthUsageFetcher.swift#L21-L39),
 [`ClaudeUsageFetcher.swift`, lines 962-976](https://github.com/ysimo0504/CodexBar/blob/main/Sources/CodexBarCore/Providers/Claude/ClaudeUsageFetcher.swift#L962-L976)).
-The payload has no explicit token/cookie/credential member, but there is no dashboard scrubber or
-test invariant proving that arbitrary provider error descriptions are display-safe. Existing
-coverage positively confirms that arbitrary message text such as `temporary failure` is preserved
-([`DashboardSnapshotBuilderTests.swift`, lines 208-236](https://github.com/ysimo0504/CodexBar/blob/main/Tests/CodexBarTests/DashboardSnapshotBuilderTests.swift#L208-L236)).
-For a rendering spike, use synthetic fixtures and render a generic error label. Before real-account
-MVP use, sanitize the dashboard payload on the host and keep detailed error text Mac-side.
+The dashboard projection now keeps numeric `code`/optional `kind`, adds a stable `reason`, and chooses
+generic display text from that reason. Focused tests inject representative credentials and response text,
+then assert none reaches encoded snapshot JSON. Raw errors remain available only to Mac-side CLI/logging
+surfaces.
 
 Raw `usage` and `openaiDashboard` provider structures are absent from this endpoint; the focused
 test asserts that an error card contains the display projection but not those raw internals
@@ -330,8 +331,8 @@ Implement the first reader against these rules:
 5. Sort cards by `(display.sortKey, id)`. Apply local provider visibility filters after decoding.
 6. Render generic cards; Codex/Claude can be placed first by user preference, but they must not use
    separate wire DTOs.
-7. Render available metrics even when a card also has `error`; use generic reader-owned error text
-   and do not persist/log/display the host's raw `error.message` in the MVP.
+7. Render available metrics even when a card also has `error`; branch on stable `reason`, use
+   reader-owned localized fallback text, and do not persist or log the Host message.
 8. Maintain per-provider last-good metrics because host whole-response caching can promote a
    provider-error snapshot. Do not merge across an observed identity change.
 9. Poll every five minutes. Configure the Mac host with a five-minute response-cache interval if
@@ -364,10 +365,8 @@ authenticated force-refresh operation later; do not overload an undocumented que
 4. **Pin ordering/freshness edge cases.** Add focused producer assertions for multiple-provider
    sort keys, a dashboard provider-error response replacing whole-response last-good, and a
    fallback response retaining its original `generatedAt`.
-5. **Define a display-safe error boundary.** Prefer a host-owned sanitized dashboard error message
-   or a small stable error reason. Until then, clients must treat raw `message` as sensitive and
-   ephemeral. A test must prove that representative token/cookie-bearing provider errors do not
-   put those values on the dashboard wire.
+5. **Define a display-safe error boundary.** Completed: Host-owned stable reasons select generic messages;
+   synthetic provider-card and top-level wire tests prove representative secrets do not cross the boundary.
 
 The current focused tests are strong producer evidence but construct Swift values and inspect
 selected JSON members; the raw HTTP smoke test only validates the empty-provider top-level shape
@@ -388,8 +387,8 @@ That is not yet a cross-language compatibility fixture.
   require a new stable card/account identity field before the host may emit duplicate provider IDs.
 - Color is advisory. Ordering and textual labels remain usable on monochrome clients.
 - Dashboard error text is display-safe and contains no provider credential, cookie, authorization
-  header, secret query value, or private credential-file content. This is a proposed invariant,
-  not a property enforced by the current producer.
+  header, secret query value, private credential-file content, or provider response body. This invariant
+  is enforced at the dashboard projection and top-level response seams.
 
 ### MVP blocker classification
 
@@ -397,7 +396,7 @@ That is not yet a cross-language compatibility fixture.
 | --- | --- | --- | --- |
 | No canonical v1 fixture/compatibility policy | Not blocking | **Blocker before release-quality handoff** | **Blocker** |
 | Host can cache provider-error snapshots as last-good | Not blocking | **Reader-side per-provider merge required** | Stable nonsecret card/account identity also required for multi-account safety |
-| Free-form unsanitized `error.message` | Ignore raw field in synthetic fixtures | **Host-side safe-error invariant and tests required before real-account use** | **Blocker** |
+| Free-form unsanitized `error.message` | Resolved by stable Host reasons/text | Resolved host-side; Reader suppression remains defense in depth | Resolved host-side |
 | No ETag/304/semantic revision | Not blocking | Not blocking; compare render models | Optional optimization |
 | Manual GET cannot bypass host TTL | Not blocking | Not blocking if labeled “Sync now” | Product decision before promising force refresh |
 | Snapshot path does not fetch service status | Not blocking | Not blocking | Optional feature |

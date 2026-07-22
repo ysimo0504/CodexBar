@@ -85,6 +85,16 @@ Content-Type: application/json; charset=utf-8
 {"error":"unauthorized"}
 ```
 
+Authenticated snapshot failures return stable reader-safe code/text and never forward the underlying
+provider/configuration diagnostic:
+
+```json
+{"code":"snapshot-unavailable","error":"Snapshot temporarily unavailable"}
+```
+
+A request deadline uses `snapshot-timeout` with `Snapshot request timed out`. Readers should branch on
+`code`, retain last-good data, and treat `error` only as display text.
+
 ## Serve semantics
 
 Snapshot requests share the serve cache and coordination machinery used by `/usage` and `/cost`:
@@ -167,5 +177,8 @@ The snapshot is a stable display contract, not a raw dump of provider internals.
 - `providers[].credits`: Remaining credits or balance when available.
 - `providers[].cost`: Local cost data when available.
 - `providers[].display`: UI hints for ordering and coloring.
-- `providers[].error`: Provider error payload when the latest fetch failed.
+- `providers[].error`: Reader-safe provider failure. It preserves the numeric CLI `code` and optional
+  `kind`, adds a stable `reason` (`provider-unavailable`, `provider-timeout`, `provider-not-installed`,
+  `invalid-provider-response`, or `configuration-required`), and carries only generic display-safe
+  `message` text. Raw provider errors and response bodies stay on the Mac.
 - `providers[].updatedAt`: Best-known update timestamp for the provider row.

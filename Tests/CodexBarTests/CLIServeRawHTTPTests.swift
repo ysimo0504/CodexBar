@@ -293,7 +293,12 @@ struct CLIServeRawHTTPTests {
 
     @Test
     func `dashboard error responses carry no-store`() async throws {
-        try await Self.withServeRuntime(token: "secret", rawConfigJSON: "{not json", body: { port in
+        let sensitiveConfig = """
+        {not json Authorization: Bearer top-level-token Cookie: session=top-level-cookie
+        private@example.com /Users/private/.config/provider/credentials.json
+        ?api_key=query-secret {"access_token":"response-secret"}
+        """
+        try await Self.withServeRuntime(token: "secret", rawConfigJSON: sensitiveConfig, body: { port in
             let response = try await Self.rawExchange(
                 port: port,
                 request: "GET /dashboard/v1/snapshot HTTP/1.1\r\nHost: 127.0.0.1\r\n"
@@ -302,6 +307,20 @@ struct CLIServeRawHTTPTests {
             #expect(response.statusLine == "HTTP/1.1 500 Internal Server Error")
             #expect(response.headerValue("Cache-Control") == "no-store")
             #expect(response.headerValues("Cache-Control").count == 1)
+            let object = try #require(
+                JSONSerialization.jsonObject(with: Data(response.body.utf8)) as? [String: Any])
+            #expect(object["code"] as? String == "snapshot-unavailable")
+            #expect(object["error"] as? String == "Snapshot temporarily unavailable")
+            for sensitiveValue in [
+                "top-level-token",
+                "top-level-cookie",
+                "private@example.com",
+                "/Users/private/.config/provider/credentials.json",
+                "query-secret",
+                "response-secret",
+            ] {
+                #expect(!response.body.contains(sensitiveValue))
+            }
         })
     }
 

@@ -44,7 +44,7 @@ struct DashboardProviderPayload: Encodable {
     let credits: DashboardCreditsPayload?
     let cost: DashboardCostPayload?
     let display: DashboardDisplayPayload
-    let error: ProviderErrorPayload?
+    let error: DashboardErrorPayload?
     let updatedAt: Date?
 
     private enum CodingKeys: String, CodingKey {
@@ -77,6 +77,44 @@ struct DashboardProviderPayload: Encodable {
         try container.encode(self.error, forKey: .error)
         try container.encode(self.updatedAt, forKey: .updatedAt)
     }
+}
+
+enum DashboardErrorReason: String, Encodable, Sendable {
+    case configurationRequired = "configuration-required"
+    case invalidProviderResponse = "invalid-provider-response"
+    case providerNotInstalled = "provider-not-installed"
+    case providerTimeout = "provider-timeout"
+    case providerUnavailable = "provider-unavailable"
+    case snapshotTimeout = "snapshot-timeout"
+    case snapshotUnavailable = "snapshot-unavailable"
+
+    var displayMessage: String {
+        switch self {
+        case .configurationRequired:
+            "Configuration required"
+        case .invalidProviderResponse:
+            "Provider data unavailable"
+        case .providerNotInstalled:
+            "Provider unavailable"
+        case .providerTimeout:
+            "Provider timed out"
+        case .providerUnavailable:
+            "Temporarily unavailable"
+        case .snapshotTimeout:
+            "Snapshot request timed out"
+        case .snapshotUnavailable:
+            "Snapshot temporarily unavailable"
+        }
+    }
+}
+
+/// Reader-safe projection of a provider error. The original diagnostic stays
+/// inside the Mac process and never crosses the Dashboard Snapshot boundary.
+struct DashboardErrorPayload: Encodable, Sendable {
+    let code: Int32
+    let message: String
+    let kind: CLIErrorKind?
+    let reason: DashboardErrorReason
 }
 
 struct DashboardStatusPayload: Encodable {

@@ -206,7 +206,13 @@ struct DashboardSnapshotBuilderTests {
     }
 
     @Test
-    func `dashboard provider errors are projected without raw usage internals`() throws {
+    func `dashboard provider errors are display safe without raw usage internals`() throws {
+        let sensitiveMessage = """
+        Authorization: Bearer provider-token; Cookie: session=provider-cookie;
+        private@example.com; /Users/private/.config/provider/credentials.json;
+        https://provider.example/error?api_key=query-secret;
+        response body: {"access_token":"response-secret","customer":"private-name"}
+        """
         let payload = ProviderPayload(
             provider: .codex,
             account: nil,
@@ -217,7 +223,7 @@ struct DashboardSnapshotBuilderTests {
             credits: nil,
             antigravityPlanInfo: nil,
             openaiDashboard: nil,
-            error: ProviderErrorPayload(code: 1, message: "temporary failure", kind: .provider))
+            error: ProviderErrorPayload(code: 1, message: sensitiveMessage, kind: .provider))
 
         let snapshot = DashboardSnapshotBuilder.makeSnapshot(
             usagePayloads: [payload],
@@ -232,9 +238,24 @@ struct DashboardSnapshotBuilderTests {
         let error = try #require(provider["error"] as? [String: Any])
 
         #expect((provider["windows"] as? [Any])?.isEmpty == true)
-        #expect(error["message"] as? String == "temporary failure")
+        #expect(error["code"] as? Int == 1)
+        #expect(error["reason"] as? String == "provider-unavailable")
+        #expect(error["message"] as? String == "Temporarily unavailable")
         #expect(provider["usage"] == nil)
         #expect(provider["openaiDashboard"] == nil)
+
+        let wire = try #require(CodexBarCLI.encodeJSON(snapshot, pretty: false))
+        for sensitiveValue in [
+            "provider-token",
+            "provider-cookie",
+            "private@example.com",
+            "/Users/private/.config/provider/credentials.json",
+            "query-secret",
+            "response-secret",
+            "private-name",
+        ] {
+            #expect(!wire.contains(sensitiveValue))
+        }
     }
 
     @Test
@@ -265,8 +286,54 @@ struct DashboardSnapshotBuilderTests {
         let provider = try #require((object["providers"] as? [[String: Any]])?.first)
         let error = try #require(provider["error"] as? [String: Any])
 
-        #expect(error["message"] as? String == "cost unavailable")
+        #expect(error["reason"] as? String == "provider-unavailable")
+        #expect(error["message"] as? String == "Temporarily unavailable")
         #expect(provider["updatedAt"] as? String == "1970-01-01T00:00:10Z")
+    }
+
+    @Test
+    func `dashboard error reasons are stable across provider exit classes`() throws {
+        let cases: [(Int32, CLIErrorKind?, String, String)] = [
+            (ExitCode.binaryNotFound.rawValue, .provider, "provider-not-installed", "Provider unavailable"),
+            (ExitCode.parseError.rawValue, .provider, "invalid-provider-response", "Provider data unavailable"),
+            (ExitCode.timeout.rawValue, .provider, "provider-timeout", "Provider timed out"),
+            (ExitCode.failure.rawValue, .config, "configuration-required", "Configuration required"),
+            (ExitCode.failure.rawValue, .provider, "provider-unavailable", "Temporarily unavailable"),
+        ]
+
+        for (code, kind, reason, message) in cases {
+            let payload = ProviderPayload(
+                provider: .claude,
+                account: nil,
+                version: nil,
+                source: "auto",
+                status: nil,
+                usage: nil,
+                credits: nil,
+                antigravityPlanInfo: nil,
+                openaiDashboard: nil,
+                error: ProviderErrorPayload(
+                    code: code,
+                    message: "secret response body private@example.com",
+                    kind: kind))
+            let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+                usagePayloads: [payload],
+                costPayloads: [],
+                config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+                identityMode: .redacted,
+                generatedAt: Date(timeIntervalSince1970: 0),
+                refreshInterval: 60,
+                codexBarVersion: nil)
+            let object = try self.jsonObject(snapshot)
+            let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+            let error = try #require(provider["error"] as? [String: Any])
+
+            #expect(error["code"] as? Int == Int(code))
+            #expect(error["reason"] as? String == reason)
+            #expect(error["message"] as? String == message)
+            let wire = try #require(CodexBarCLI.encodeJSON(snapshot, pretty: false))
+            #expect(!wire.contains("private@example.com"))
+        }
     }
 
     @Test

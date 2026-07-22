@@ -58,7 +58,7 @@ enum DashboardSnapshotBuilder {
         let descriptor = provider.map { ProviderDescriptorRegistry.descriptor(for: $0) }
         let metadata = descriptor?.metadata
 
-        let error = payload.error ?? cost?.error
+        let error = (payload.error ?? cost?.error).map(self.makeError)
         return DashboardProviderPayload(
             id: payload.provider,
             name: metadata?.displayName ?? payload.provider,
@@ -79,6 +79,24 @@ enum DashboardSnapshotBuilder {
                 cost: cost,
                 error: error,
                 generatedAt: generatedAt))
+    }
+
+    private static func makeError(_ error: ProviderErrorPayload) -> DashboardErrorPayload {
+        let reason: DashboardErrorReason = switch ExitCode(rawValue: error.code) {
+        case .binaryNotFound:
+            .providerNotInstalled
+        case .parseError:
+            .invalidProviderResponse
+        case .timeout:
+            .providerTimeout
+        default:
+            error.kind == .config ? .configurationRequired : .providerUnavailable
+        }
+        return DashboardErrorPayload(
+            code: error.code,
+            message: reason.displayMessage,
+            kind: error.kind,
+            reason: reason)
     }
 
     private static func dashboardSource(from source: String) -> String {
@@ -243,7 +261,7 @@ enum DashboardSnapshotBuilder {
     private static func updatedAt(
         payload: ProviderPayload,
         cost: CostPayload?,
-        error: ProviderErrorPayload?,
+        error: DashboardErrorPayload?,
         generatedAt: Date) -> Date?
     {
         let newest = [payload.status?.updatedAt, payload.usage?.updatedAt, payload.credits?.updatedAt, cost?.updatedAt]
