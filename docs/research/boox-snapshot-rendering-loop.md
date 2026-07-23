@@ -40,8 +40,16 @@ The fixture server accepted only `GET /dashboard/v1/snapshot` with the synthetic
 
 The device fetch used `adb reverse` to a loopback fixture server because the Leaf3C Wi-Fi was disabled and did not
 reassociate when enabled. This proved request authentication and Reader behavior without weakening release
-transport policy. It did not prove Tailscale, MagicDNS, tailnet ACLs, TLS hostname failure, Wi-Fi recovery, reboot
-recovery, token rotation, or battery impact; those remain secure-transport acceptance work before real-account use.
+transport policy.
+
+The official Tailscale Android 1.98.8 universal APK was downloaded from the `tailscale/tailscale-android` GitHub
+release, verified against the release asset SHA-256 digest, installed, and explicitly enabled. Its minimum API is 26,
+so the Leaf3C API 30 runtime is supported. After waking the device, retrying Tailscale's initial permission prompt
+successfully exposed and accepted the Android system VPN consent dialog; the **Get Started** onboarding screen then
+rendered. Sign-in was not attempted because the device had no associated Wi-Fi network and account authorization
+requires the user. MagicDNS, tailnet ACLs, HTTPS, direct/DERP connectivity, Wi-Fi recovery, reboot recovery, token
+rotation, TLS hostname failure, and battery impact therefore remain secure-transport acceptance work before
+real-account use.
 
 ## Reader behavior
 
