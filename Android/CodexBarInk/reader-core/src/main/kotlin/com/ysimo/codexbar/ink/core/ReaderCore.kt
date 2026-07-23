@@ -154,7 +154,7 @@ object DashboardPresenter {
         val generatedAtMillis = runCatching { Instant.parse(state.generatedAt).toEpochMilli() }
             .getOrDefault(state.receivedAtEpochMillis)
         val staleAt = generatedAtMillis + state.staleAfterSeconds * 1_000
-        val freshness = if (nowEpochMillis > staleAt) "STALE · showing last good" else "FRESH · fixture snapshot"
+        val freshness = if (nowEpochMillis > staleAt) "STALE · showing last good" else "FRESH · snapshot"
         val cards = state.providers.map(::presentProvider)
 
         return DashboardPresentation(

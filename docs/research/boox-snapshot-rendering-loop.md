@@ -13,6 +13,31 @@ The final APK installed on the device uses the bundled redacted fixture so it re
 bridge is removed. No live Provider probe, browser-cookie import, Keychain read, account snapshot, device serial, or
 real bearer token was used or recorded.
 
+## Production reader transport implementation
+
+The follow-up `tailnet` transport flavor now builds the production Reader boundary separately from the fixture and
+offline flavors:
+
+- Package: `com.ysimo.codexbar.ink.debug` for the current debug build; release keeps
+  `com.ysimo.codexbar.ink`.
+- Build: `./gradlew :app:assembleTailnetBooxDebug`.
+- Pairing accepts only an origin-shaped `https://*.ts.net` address. It rejects cleartext, IP addresses, user info,
+  non-443 ports, query strings, fragments, and paths.
+- The client constructs only `/dashboard/v1/snapshot`, sends the reader token only as an `Authorization: Bearer`
+  header, disables redirects and caches, and caps responses at 1 MiB.
+- Android's HTTPS stack performs normal certificate and hostname verification. TLS failure is a hard failure with no
+  HTTP fallback.
+- Android Keystore AES-256-GCM protects the reader token; private preferences retain only the origin, IV, and
+  ciphertext. Application backup remains disabled.
+- A 401 retains sanitized last-good data and pauses further network authentication until the user re-pairs.
+- **FORGET** removes the encrypted pairing, Keystore entry, and sanitized last-good snapshot.
+- Network, HTTP, TLS, and schema failures expose only bounded reader-safe labels and preserve last-good data.
+
+Unit tests cover exact endpoint validation and provider-generic presentation. The production BOOX APK passes Android
+lint, APK signature verification, and build checks. It has not yet replaced the visible fixture APK on the Leaf3C:
+the device must reappear in ADB and both Mac and Leaf3C must complete Tailscale login before the remaining HTTPS,
+MagicDNS, ACL, sleep/wake, and token-rotation acceptance matrix can be recorded.
+
 ## Device and build
 
 - Device: mainland BOOX Leaf3C, BOOX firmware 4.2.

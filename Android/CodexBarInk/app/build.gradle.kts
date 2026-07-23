@@ -35,12 +35,24 @@ android {
             dimension = "transport"
             applicationIdSuffix = ".fixture"
             versionNameSuffix = "-fixture"
+            buildConfigField("String", "TRANSPORT_KIND", "\"fixture\"")
             buildConfigField("String", "FIXTURE_URL", fixtureURL.asBuildConfigString())
             buildConfigField("String", "FIXTURE_TOKEN", fixtureToken.asBuildConfigString())
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         create("offline") {
             dimension = "transport"
+            applicationIdSuffix = ".offline"
+            versionNameSuffix = "-offline"
+            buildConfigField("String", "TRANSPORT_KIND", "\"offline\"")
+            buildConfigField("String", "FIXTURE_URL", "\"\"")
+            buildConfigField("String", "FIXTURE_TOKEN", "\"\"")
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+        }
+        create("tailnet") {
+            dimension = "transport"
+            versionNameSuffix = "-tailnet"
+            buildConfigField("String", "TRANSPORT_KIND", "\"tailnet\"")
             buildConfigField("String", "FIXTURE_URL", "\"\"")
             buildConfigField("String", "FIXTURE_TOKEN", "\"\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"

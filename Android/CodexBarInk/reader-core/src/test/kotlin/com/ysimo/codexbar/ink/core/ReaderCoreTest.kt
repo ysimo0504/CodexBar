@@ -14,6 +14,7 @@ class ReaderCoreTest {
         val state = ReaderReducer.decodeAndMerge(fixture, previous = null, receivedAtEpochMillis = 1)
         val presentation = DashboardPresenter.present(state, nowEpochMillis = 1)
 
+        assertEquals("FRESH · snapshot", presentation.freshness)
         assertEquals("Codex", presentation.codex?.name)
         assertEquals("Claude", presentation.claude?.name)
         assertEquals(listOf("future-provider"), presentation.genericProviders.map { it.id })

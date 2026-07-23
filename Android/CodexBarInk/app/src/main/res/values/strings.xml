@@ -2,6 +2,12 @@
     <string name="app_name">CodexBar Ink</string>
     <string name="dashboard_title">CODEXBAR INK</string>
     <string name="refresh_now">REFRESH NOW</string>
+    <string name="configure_host">HOST</string>
     <string name="clean_ghosting">CLEAN GHOSTING</string>
-    <string name="waiting_for_fixture">Waiting for fixture…</string>
+    <string name="waiting_for_fixture">Waiting for snapshot…</string>
+    <string name="usage_host_title">Usage Host pairing</string>
+    <string name="usage_host_address_hint">https://your-mac.tailnet.ts.net</string>
+    <string name="reader_token_hint">Reader token</string>
+    <string name="save_pairing">SAVE</string>
+    <string name="forget_pairing">FORGET</string>
 </resources>

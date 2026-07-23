@@ -1,13 +1,17 @@
 package com.ysimo.codexbar.ink
 
+import android.app.AlertDialog
 import android.graphics.Color
 import android.os.Bundle
+import android.text.InputType
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.view.WindowCompat
@@ -52,6 +56,7 @@ class MainActivity : ComponentActivity() {
         }
 
         binding.refreshButton.setOnClickListener { refreshSnapshot() }
+        binding.hostButton.setOnClickListener { showPairingDialog() }
         binding.cleanButton.setOnClickListener {
             if (adapterAttached) displayAdapter.fullRefresh("manual-ghost-cleanup")
             binding.transportStatusText.text = "$sourceLabel · ${displayAdapter.capabilityLabel} · cleaned"
@@ -82,6 +87,79 @@ class MainActivity : ComponentActivity() {
         binding.transportStatusText.text = "$sourceLabel · refreshing"
         submitDisplayUpdate(SemanticChangeSet(setOf(RegionKey.Header)))
         repository.refresh(readerState) { result -> render(result) }
+    }
+
+    private fun showPairingDialog() {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(8), dp(24), 0)
+        }
+        val originField = EditText(this).apply {
+            hint = getString(R.string.usage_host_address_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+            setText(repository.pairingOrigin().orEmpty())
+        }
+        val tokenField = EditText(this).apply {
+            hint = getString(R.string.reader_token_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            setSingleLine(true)
+        }
+        container.addView(originField)
+        container.addView(tokenField)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.usage_host_title)
+            .setView(container)
+            .setPositiveButton(R.string.save_pairing, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.forget_pairing, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val error = repository.savePairing(originField.text.toString(), tokenField.text.toString())
+                if (error == null) {
+                    dialog.dismiss()
+                    refreshSnapshot()
+                } else {
+                    tokenField.text?.clear()
+                    originField.error = error
+                }
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+                repository.clearPairing()
+                readerState = null
+                presentation = null
+                dialog.dismiss()
+                clearDashboard()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun clearDashboard() {
+        binding.freshnessText.text = "NO SNAPSHOT"
+        binding.transportStatusText.text = "Usage Host pairing removed"
+        bindPriorityCard(
+            null,
+            binding.codexName,
+            binding.codexPrimary,
+            binding.codexSecondary,
+            binding.codexStatus,
+            binding.codexProgress,
+            "Codex",
+        )
+        bindPriorityCard(
+            null,
+            binding.claudeName,
+            binding.claudePrimary,
+            binding.claudeSecondary,
+            binding.claudeStatus,
+            binding.claudeProgress,
+            "Claude",
+        )
+        bindGenericProviders(emptyList())
+        submitDisplayUpdate(SemanticChangeSet.full)
     }
 
     private fun render(result: DashboardRepository.Result) {
