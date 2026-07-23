@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/dashboard_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/paper"
+    android:clipToPadding="false"
+    android:orientation="vertical"
+    android:paddingStart="18dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="14dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:id="@+id/header_region"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:importantForAccessibility="yes"
+        android:orientation="vertical"
+        android:screenReaderFocusable="true">
+
+        <TextView
+            android:id="@+id/dashboard_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.08"
+            android:text="@string/dashboard_title"
+            android:textColor="@color/ink_black"
+            android:textSize="26sp" />
+
+        <TextView
+            android:id="@+id/freshness_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/waiting_for_fixture"
+            android:textColor="@color/ink_black"
+            android:textSize="16sp"
+            tools:text="FRESH · fixture snapshot" />
+
+        <TextView
+            android:id="@+id/transport_status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:textColor="@color/ink_dark"
+            android:textSize="14sp"
+            tools:text="Bundled redacted fixture · updated 00:00" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/codex_card"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_weight="1"
+        android:background="@drawable/card_ink"
+        android:gravity="center_vertical"
+        android:importantForAccessibility="yes"
+        android:orientation="vertical"
+        android:padding="14dp"
+        android:screenReaderFocusable="true">
+
+        <TextView
+            android:id="@+id/codex_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:fontFamily="sans-serif-black"
+            android:text="Codex"
+            android:textColor="@color/ink_black"
+            android:textSize="31sp" />
+
+        <TextView
+            android:id="@+id/codex_primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:textColor="@color/ink_black"
+            android:textSize="21sp"
+            tools:text="Session: 28% used" />
+
+        <ProgressBar
+            android:id="@+id/codex_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="14dp"
+            android:layout_marginTop="8dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/progress_track_ink" />
+
+        <TextView
+            android:id="@+id/codex_secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:maxLines="2"
+            android:textColor="@color/ink_dark"
+            android:textSize="16sp"
+            tools:text="Weekly 59.5% · Future allowance 10%" />
+
+        <TextView
+            android:id="@+id/codex_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:textColor="@color/ink_black"
+            android:textSize="14sp"
+            tools:text="Operational" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/claude_card"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="1"
+        android:background="@drawable/card_ink"
+        android:gravity="center_vertical"
+        android:importantForAccessibility="yes"
+        android:orientation="vertical"
+        android:padding="14dp"
+        android:screenReaderFocusable="true">
+
+        <TextView
+            android:id="@+id/claude_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:fontFamily="sans-serif-black"
+            android:text="Claude"
+            android:textColor="@color/ink_black"
+            android:textSize="31sp" />
+
+        <TextView
+            android:id="@+id/claude_primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:textColor="@color/ink_black"
+            android:textSize="21sp"
+            tools:text="Weekly: 70% used" />
+
+        <ProgressBar
+            android:id="@+id/claude_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="14dp"
+            android:layout_marginTop="8dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/progress_track_ink" />
+
+        <TextView
+            android:id="@+id/claude_secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:maxLines="2"
+            android:textColor="@color/ink_dark"
+            android:textSize="16sp"
+            tools:text="No additional windows" />
+
+        <TextView
+            android:id="@+id/claude_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:textColor="@color/ink_black"
+            android:textSize="14sp"
+            tools:text="Last good · Temporarily unavailable" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/generic_card"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="0.62"
+        android:background="@drawable/card_ink"
+        android:importantForAccessibility="yes"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:screenReaderFocusable="false">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityHeading="true"
+            android:fontFamily="sans-serif-black"
+            android:text="OTHER PROVIDERS"
+            android:textColor="@color/ink_black"
+            android:textSize="17sp" />
+
+        <LinearLayout
+            android:id="@+id/generic_provider_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            tools:ignore="UselessParent" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="10dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/refresh_button"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/button_ink"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:text="@string/refresh_now"
+            android:textColor="@color/paper"
+            android:textSize="14sp" />
+
+        <Space
+            android:layout_width="10dp"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:id="@+id/clean_button"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/button_ink"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingHorizontal="8dp"
+            android:text="@string/clean_ghosting"
+            android:textColor="@color/paper"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+</LinearLayout>

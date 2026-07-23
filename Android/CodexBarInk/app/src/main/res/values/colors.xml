@@ -1,0 +1,8 @@
+<resources>
+    <color name="ink_black">#151515</color>
+    <color name="ink_dark">#343434</color>
+    <color name="ink_mid">#737373</color>
+    <color name="ink_light">#D2CEC3</color>
+    <color name="paper">#F5F2E9</color>
+    <color name="paper_card">#ECE8DD</color>
+</resources>

@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">CodexBar Ink</string>
+    <string name="dashboard_title">CODEXBAR INK</string>
+    <string name="refresh_now">REFRESH NOW</string>
+    <string name="clean_ghosting">CLEAN GHOSTING</string>
+    <string name="waiting_for_fixture">Waiting for fixture…</string>
+</resources>
