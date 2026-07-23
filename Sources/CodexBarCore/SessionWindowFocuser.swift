@@ -94,6 +94,7 @@ public enum SessionWindowFocuser {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/ps")
         process.arguments = ["-o", "ppid=", "-p", String(pid)]
+        process.environment = ChildProcessEnvironment.sanitized(ProcessInfo.processInfo.environment)
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice

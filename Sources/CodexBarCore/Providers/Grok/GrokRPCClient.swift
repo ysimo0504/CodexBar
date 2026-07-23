@@ -44,7 +44,7 @@ final class GrokRPCClient: @unchecked Sendable {
         var env = environment
         env["PATH"] = PathBuilder.effectivePATH(purposes: [.rpc], env: env)
 
-        self.process.environment = env
+        self.process.environment = ChildProcessEnvironment.sanitized(env)
         self.process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         self.process.arguments = [resolvedExec] + arguments
         self.process.standardInput = self.stdinPipe

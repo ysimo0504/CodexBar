@@ -13,6 +13,7 @@ struct CodexBarApp: App {
     @State private var store: UsageStore
     @State private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator
     @State private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator
+    @State private var inkUsageHostCoordinator: InkUsageHostCoordinator
     private let preferencesSelection: PreferencesSelection
     private let account: AccountInfo
 
@@ -61,11 +62,15 @@ struct CodexBarApp: App {
             settingsStore: settings,
             usageStore: store,
             managedAccountCoordinator: managedCodexAccountCoordinator)
+        let inkUsageHostCoordinator = InkUsageHostCoordinator {
+            try InkDashboardSnapshot.encode(store: store, settings: settings, appVersion: version)
+        }
         self.preferencesSelection = preferencesSelection
         _settings = State(wrappedValue: settings)
         _store = State(wrappedValue: store)
         _managedCodexAccountCoordinator = State(wrappedValue: managedCodexAccountCoordinator)
         _codexAccountPromotionCoordinator = State(wrappedValue: codexAccountPromotionCoordinator)
+        _inkUsageHostCoordinator = State(wrappedValue: inkUsageHostCoordinator)
         self.account = account
         CodexBarLog.setLogLevel(settings.debugLogLevel)
         self.appDelegate.configure(.init(
@@ -74,7 +79,8 @@ struct CodexBarApp: App {
             account: account,
             selection: preferencesSelection,
             managedCodexAccountCoordinator: managedCodexAccountCoordinator,
-            codexAccountPromotionCoordinator: codexAccountPromotionCoordinator))
+            codexAccountPromotionCoordinator: codexAccountPromotionCoordinator,
+            inkUsageHostCoordinator: inkUsageHostCoordinator))
     }
 
     @SceneBuilder
@@ -95,6 +101,7 @@ struct CodexBarApp: App {
                 selection: self.preferencesSelection,
                 managedCodexAccountCoordinator: self.managedCodexAccountCoordinator,
                 codexAccountPromotionCoordinator: self.codexAccountPromotionCoordinator,
+                inkUsageHostCoordinator: self.inkUsageHostCoordinator,
                 runProviderLoginFlow: { provider in
                     await self.appDelegate.runProviderLoginFlow(provider)
                 })
@@ -346,6 +353,7 @@ private func makeUpdaterController() -> UpdaterProviding {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    @MainActor
     struct Dependencies {
         let store: UsageStore
         let settings: SettingsStore
@@ -353,6 +361,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let selection: PreferencesSelection
         let managedCodexAccountCoordinator: ManagedCodexAccountCoordinator
         let codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator
+        let inkUsageHostCoordinator: InkUsageHostCoordinator
+
+        init(
+            store: UsageStore,
+            settings: SettingsStore,
+            account: AccountInfo,
+            selection: PreferencesSelection,
+            managedCodexAccountCoordinator: ManagedCodexAccountCoordinator,
+            codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator,
+            inkUsageHostCoordinator: InkUsageHostCoordinator? = nil)
+        {
+            self.store = store
+            self.settings = settings
+            self.account = account
+            self.selection = selection
+            self.managedCodexAccountCoordinator = managedCodexAccountCoordinator
+            self.codexAccountPromotionCoordinator = codexAccountPromotionCoordinator
+            self.inkUsageHostCoordinator = inkUsageHostCoordinator ?? InkUsageHostCoordinator(
+                defaults: UserDefaults(suiteName: "AppDelegate-tests-\(UUID().uuidString)") ?? .standard,
+                monitorLifecycle: false,
+                snapshotProvider: { Data("{}".utf8) })
+        }
     }
 
     let updaterController: UpdaterProviding = makeUpdaterController()
@@ -369,6 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var preferencesSelection: PreferencesSelection?
     private var managedCodexAccountCoordinator: ManagedCodexAccountCoordinator?
     private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?
+    private var inkUsageHostCoordinator: InkUsageHostCoordinator?
     private var hasInstalledLimitResetObservers = false
     #if DEBUG
     private var debugMemoryPressureObserver: NSObjectProtocol?
@@ -384,6 +415,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.preferencesSelection = dependencies.selection
         self.managedCodexAccountCoordinator = dependencies.managedCodexAccountCoordinator
         self.codexAccountPromotionCoordinator = dependencies.codexAccountPromotionCoordinator
+        self.inkUsageHostCoordinator = dependencies.inkUsageHostCoordinator
     }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -396,6 +428,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.installDebugMemoryPressureObserverIfNeeded()
         #endif
         self.ensureStatusController()
+        self.inkUsageHostCoordinator?.startIfEnabled()
         Task { @MainActor [weak self] in
             await Task.yield()
             guard let settings = self?.settings else { return }
@@ -429,6 +462,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.removeDebugMemoryPressureObserver()
         #endif
         self.statusController?.prepareForAppShutdown()
+        self.inkUsageHostCoordinator?.prepareForTermination()
         self.confettiOverlayController.dismiss()
         self.dismissAppKitWindowsForShutdown()
         self.terminateActiveProcessesForAppShutdown()

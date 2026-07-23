@@ -78,6 +78,16 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 @MainActor
 struct GeneralPane: View {
     @Bindable var settings: SettingsStore
+    @Bindable var inkUsageHostCoordinator: InkUsageHostCoordinator
+    @State private var isConfirmingTokenRotation = false
+
+    init(settings: SettingsStore, inkUsageHostCoordinator: InkUsageHostCoordinator? = nil) {
+        self.settings = settings
+        self.inkUsageHostCoordinator = inkUsageHostCoordinator ?? InkUsageHostCoordinator(
+            defaults: UserDefaults(suiteName: "GeneralPane-preview-\(UUID().uuidString)") ?? .standard,
+            monitorLifecycle: false,
+            snapshotProvider: { Data("{}".utf8) })
+    }
 
     var body: some View {
         Form {
@@ -135,6 +145,53 @@ struct GeneralPane: View {
             }
 
             Section {
+                Toggle(isOn: Binding(
+                    get: { self.inkUsageHostCoordinator.isEnabled },
+                    set: { self.inkUsageHostCoordinator.setEnabled($0) }))
+                {
+                    SettingsRowLabel(
+                        "BOOX Usage Host",
+                        subtitle: "Share the cached Dashboard Snapshot over authenticated Tailscale HTTPS.")
+                }
+
+                LabeledContent("Status") {
+                    Text(verbatim: self.inkUsageHostCoordinator.state.summary)
+                        .foregroundStyle(self.inkUsageHostCoordinator.state == .disabled ? .secondary : .primary)
+                }
+
+                if let fingerprint = self.inkUsageHostCoordinator.tokenFingerprint {
+                    LabeledContent("Reader token") {
+                        HStack {
+                            Text(verbatim: "Fingerprint \(fingerprint)")
+                                .foregroundStyle(.secondary)
+                            Button("Copy") { self.inkUsageHostCoordinator.copyReaderToken() }
+                            Button("Rotate", role: .destructive) {
+                                self.isConfirmingTokenRotation = true
+                            }
+                        }
+                    }
+                }
+
+                if self.inkUsageHostCoordinator.isEnabled {
+                    if let nextRetryAt = self.inkUsageHostCoordinator.nextRetryAt {
+                        LabeledContent("Next retry") {
+                            Text(nextRetryAt, style: .relative)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    HStack {
+                        Spacer()
+                        Button("Retry") { self.inkUsageHostCoordinator.retryNow() }
+                    }
+                }
+            } header: {
+                Text("E-ink reader")
+            } footer: {
+                SettingsSectionFooter(
+                    "Requires the signed CodexBar app and Tailscale on both devices. No LAN HTTP is exposed.")
+            }
+
+            Section {
                 LabeledContent(L("open_menu_shortcut_title")) {
                     OpenMenuShortcutRecorder()
                 }
@@ -150,8 +207,20 @@ struct GeneralPane: View {
             }
         }
         .formStyle(.grouped)
+        .confirmationDialog(
+            "Rotate reader token?",
+            isPresented: self.$isConfirmingTokenRotation,
+            titleVisibility: .visible)
+        {
+            Button("Rotate token", role: .destructive) {
+                self.inkUsageHostCoordinator.rotateToken()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The BOOX reader must be paired again with the new token.")
+        }
         .toggleStyle(.switch)
-        .scrollContentBackground(.hidden)
-        .background(FocusResigningBackground())
+            .scrollContentBackground(.hidden)
+            .background(FocusResigningBackground())
     }
 }

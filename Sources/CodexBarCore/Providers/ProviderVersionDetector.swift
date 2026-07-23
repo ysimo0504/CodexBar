@@ -237,7 +237,8 @@ public enum ProviderVersionDetector {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: path)
         proc.arguments = args
-        proc.environment = environment
+        proc.environment = ChildProcessEnvironment.sanitized(
+            environment ?? ProcessInfo.processInfo.environment)
         let out = Pipe()
         proc.standardOutput = out
         proc.standardError = mergeStandardError ? out : FileHandle.nullDevice

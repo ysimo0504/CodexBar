@@ -37,6 +37,11 @@ public enum SubprocessRunnerError: LocalizedError, Sendable {
 public struct SubprocessResult: Sendable {
     public let stdout: String
     public let stderr: String
+
+    public init(stdout: String, stderr: String) {
+        self.stdout = stdout
+        self.stderr = stderr
+    }
 }
 
 public enum SubprocessRunner {
@@ -200,7 +205,7 @@ public enum SubprocessRunner {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: binary)
         process.arguments = arguments
-        process.environment = environment
+        process.environment = ChildProcessEnvironment.sanitized(environment)
         process.currentDirectoryURL = currentDirectoryURL
 
         let stdoutPipe = Pipe()

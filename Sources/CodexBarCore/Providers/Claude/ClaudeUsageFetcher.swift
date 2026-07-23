@@ -1436,6 +1436,7 @@ extension ClaudeUsageFetcher {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         process.arguments = [tool]
+        process.environment = ChildProcessEnvironment.sanitized(ProcessInfo.processInfo.environment)
         let pipe = Pipe()
         process.standardOutput = pipe
         try? process.run()
@@ -1454,6 +1455,7 @@ extension ClaudeUsageFetcher {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: cmd)
         task.arguments = args
+        task.environment = ChildProcessEnvironment.sanitized(ProcessInfo.processInfo.environment)
         let pipe = Pipe()
         task.standardOutput = pipe
         try? task.run()

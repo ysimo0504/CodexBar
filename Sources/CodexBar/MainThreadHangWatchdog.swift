@@ -237,6 +237,7 @@ final class MainThreadHangWatchdog: @unchecked Sendable {
         let processID = ObjectIdentifier(process)
         process.executableURL = URL(fileURLWithPath: "/usr/bin/sample")
         process.arguments = ["\(ProcessInfo.processInfo.processIdentifier)", "3", "-file", file.path]
+        process.environment = ChildProcessEnvironment.sanitized(ProcessInfo.processInfo.environment)
         process.terminationHandler = { [weak self] completedProcess in
             self?.sampleDidFinish(completedProcess, processID: processID, file: file)
         }

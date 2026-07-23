@@ -1222,7 +1222,7 @@ extension TTYCommandRunner {
             purposes: [.tty, .nodeTooling],
             env: env,
             loginPATH: loginPATH)
-        proc.environment = env
+        proc.environment = ChildProcessEnvironment.sanitized(env)
         let pipe = Pipe()
         proc.standardOutput = pipe
         try? proc.run()
@@ -1247,7 +1247,7 @@ extension TTYCommandRunner {
         loginPATH: [String]? = LoginShellPathCache.shared.current,
         home: String = NSHomeDirectory()) -> [String: String]
     {
-        var env = baseEnv
+        var env = ChildProcessEnvironment.sanitized(baseEnv)
         env["PATH"] = PathBuilder.effectivePATH(
             purposes: [.tty, .nodeTooling],
             env: baseEnv,

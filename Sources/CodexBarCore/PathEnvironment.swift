@@ -572,6 +572,7 @@ public enum CodexLaunchPreflight {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: spctlPath)
         process.arguments = ["--assess", "--type", "execute", "--verbose=4", path]
+        process.environment = ChildProcessEnvironment.sanitized(ProcessInfo.processInfo.environment)
 
         let output = Pipe()
         process.standardOutput = output

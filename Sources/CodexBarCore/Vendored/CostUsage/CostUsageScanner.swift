@@ -452,6 +452,7 @@ enum CostUsageScanner {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.arguments = ["git", "-C", projectPath, "worktree", "list", "--porcelain"]
+            process.environment = ChildProcessEnvironment.sanitized(ProcessInfo.processInfo.environment)
 
             let outputPipe = Pipe()
             let errorPipe = Pipe()

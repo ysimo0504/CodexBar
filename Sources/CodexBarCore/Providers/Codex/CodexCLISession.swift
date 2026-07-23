@@ -308,7 +308,7 @@ actor CodexCLISession {
         let env = TTYCommandRunner.enrichedEnvironment(
             baseEnv: options.environment,
             home: options.environment["HOME"] ?? NSHomeDirectory())
-        proc.environment = env
+        proc.environment = ChildProcessEnvironment.sanitized(env)
 
         guard TTYCommandRunner.beginActiveProcessLaunchForAppShutdown() else {
             try? primaryHandle.close()

@@ -47,6 +47,7 @@ struct PreferencesView: View {
     @Bindable var selection: PreferencesSelection
     let managedCodexAccountCoordinator: ManagedCodexAccountCoordinator
     let codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator
+    @Bindable var inkUsageHostCoordinator: InkUsageHostCoordinator
     let runProviderLoginFlow: @MainActor (UsageProvider) async -> Void
     @Environment(\.colorScheme) private var colorScheme
 
@@ -57,6 +58,7 @@ struct PreferencesView: View {
         selection: PreferencesSelection,
         managedCodexAccountCoordinator: ManagedCodexAccountCoordinator = ManagedCodexAccountCoordinator(),
         codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator? = nil,
+        inkUsageHostCoordinator: InkUsageHostCoordinator,
         runProviderLoginFlow: @escaping @MainActor (UsageProvider) async -> Void = { _ in })
     {
         self.settings = settings
@@ -69,6 +71,7 @@ struct PreferencesView: View {
                 settingsStore: settings,
                 usageStore: store,
                 managedAccountCoordinator: managedCodexAccountCoordinator)
+        self.inkUsageHostCoordinator = inkUsageHostCoordinator
         self.runProviderLoginFlow = runProviderLoginFlow
     }
 
@@ -122,7 +125,7 @@ struct PreferencesView: View {
     private var detailView: some View {
         switch self.selection.pane {
         case .general:
-            GeneralPane(settings: self.settings)
+            GeneralPane(settings: self.settings, inkUsageHostCoordinator: self.inkUsageHostCoordinator)
         case .usageSpend:
             SpendDashboardPane(settings: self.settings, store: self.store)
         case .notifications:

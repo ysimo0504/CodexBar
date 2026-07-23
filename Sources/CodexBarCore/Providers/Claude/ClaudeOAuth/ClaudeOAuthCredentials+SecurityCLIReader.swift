@@ -225,6 +225,7 @@ extension ClaudeOAuthCredentialsStore {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: self.securityBinaryPath)
         process.arguments = arguments
+        process.environment = ChildProcessEnvironment.sanitized(environment)
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()

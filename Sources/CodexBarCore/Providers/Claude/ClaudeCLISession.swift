@@ -323,7 +323,7 @@ actor ClaudeCLISession {
         proc.currentDirectoryURL = workingDirectory
         var env = Self.launchEnvironment()
         env["PWD"] = workingDirectory.path
-        proc.environment = env
+        proc.environment = ChildProcessEnvironment.sanitized(env)
 
         guard TTYCommandRunner.beginActiveProcessLaunchForAppShutdown() else {
             try? primaryHandle.close()

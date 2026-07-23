@@ -41,7 +41,7 @@ struct CodexLoginRunner {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.arguments = [executable, "login"]
-            process.environment = env
+            process.environment = ChildProcessEnvironment.sanitized(env)
 
             let stdout = Pipe()
             let stderr = Pipe()
