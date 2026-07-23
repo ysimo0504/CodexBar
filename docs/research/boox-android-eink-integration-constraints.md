@@ -203,7 +203,8 @@ BOOX 官方说明其开放 Android 系统支持第三方 App 安装；Android 8+
 
 更新契约：
 
-- 尽早锁定稳定 application ID；具体命名和所有权仍需项目决策。
+- 稳定 application ID 已锁定为 `com.ysimo.codexbar.ink`；签名、版本、交付与恢复规则见
+  [APK 签名与侧载交付决策](android-apk-signing-sideload-delivery.md)。
 - 所有可更新 release APK 使用同一长期 signing certificate；私钥不进入仓库。
 - 每次发布递增 `versionCode`。升级使用系统 installer 或 `adb install -r`。
 - 新 APK 的 application ID、签名证书和 versionCode 必须满足 Android 更新规则；签名不一致会
