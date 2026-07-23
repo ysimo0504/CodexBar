@@ -8,9 +8,16 @@ BOOX 优先的 CodexBar Ink 应如何连接 Mac 上的 CodexBar Usage Host，既
 
 范围只包含个人设备上的只读 snapshot 传输。公网多用户服务、账号共享、写操作和 provider 凭据下发不在本阶段范围内。
 
-## 决策
+## 决策状态
 
-**真实账号 MVP 默认采用 Tailscale + HTTPS，但必须先修复当前 Host、路由和 token 边界。**
+本文记录的 Tailscale-first 决策已由
+[`0002-self-hosted-lan-https.md`](../adr/0002-self-hosted-lan-https.md) 取代。真实账号 MVP 默认改为 CodexBar
+自托管的局域网 HTTPS；Tailscale 只保留为可选远程适配器。下文的 Tailscale 威胁分析与验收项仍作为该
+可选适配器的历史研究依据，不再构成 BOOX MVP 前置条件。
+
+## 原决策
+
+**原方案：真实账号 MVP 默认采用 Tailscale + HTTPS，但必须先修复当前 Host、路由和 token 边界。**
 
 目标拓扑：
 
