@@ -1,6 +1,8 @@
 package com.ysimo.codexbar.ink
 
 import android.app.AlertDialog
+import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
 import android.text.InputType
@@ -27,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var repository: DashboardRepository
     private lateinit var displayAdapter: DisplayAdapter
+    private lateinit var screensaverExporter: DashboardScreensaverExporter
     private var readerState: ReaderState? = null
     private var presentation: DashboardPresentation? = null
     private var sourceLabel: String = "Starting"
@@ -48,6 +51,9 @@ class MainActivity : ComponentActivity() {
 
         repository = DashboardRepository(applicationContext)
         displayAdapter = DisplayAdapterFactory.create()
+        screensaverExporter = DashboardScreensaverExporter(applicationContext)
+        binding.codexProgress.progressTintList = ColorStateList.valueOf(getColor(R.color.codex_accent))
+        binding.claudeProgress.progressTintList = ColorStateList.valueOf(getColor(R.color.claude_accent))
         binding.dashboardRoot.post {
             if (binding.dashboardRoot.isAttachedToWindow) {
                 displayAdapter.attach(binding.dashboardRoot)
@@ -57,6 +63,7 @@ class MainActivity : ComponentActivity() {
 
         binding.refreshButton.setOnClickListener { refreshSnapshot() }
         binding.hostButton.setOnClickListener { showPairingDialog() }
+        binding.screenButton.setOnClickListener { confirmScreensaverExport() }
         binding.cleanButton.setOnClickListener {
             if (adapterAttached) displayAdapter.fullRefresh("manual-ghost-cleanup")
             binding.transportStatusText.text = "$sourceLabel · ${displayAdapter.capabilityLabel} · cleaned"
@@ -79,8 +86,42 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         displayAdapter.detach()
+        screensaverExporter.close()
         repository.close()
         super.onDestroy()
+    }
+
+    private fun confirmScreensaverExport() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.screensaver_privacy_title)
+            .setMessage(R.string.screensaver_privacy_message)
+            .setPositiveButton(R.string.export_screensaver) { _, _ -> exportScreensaver() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun exportScreensaver() {
+        screensaverExporter.export(binding.dashboardRoot, binding.actionRow) { result ->
+            result.onSuccess { uri ->
+                binding.transportStatusText.text =
+                    "Saved to Pictures/CodexBar Ink · select it in BOOX Screensaver"
+                displayAdapter.fullRefresh("screensaver-exported")
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.screensaver_saved_title)
+                    .setMessage(R.string.screensaver_saved_message)
+                    .setPositiveButton(R.string.open_screensaver_image) { _, _ ->
+                        startActivity(
+                            Intent(Intent.ACTION_VIEW)
+                                .setDataAndType(uri, "image/png")
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                        )
+                    }
+                    .setNegativeButton(android.R.string.ok, null)
+                    .show()
+            }.onFailure {
+                binding.transportStatusText.text = "Could not export screensaver image"
+            }
+        }
     }
 
     private fun refreshSnapshot() {
@@ -94,6 +135,12 @@ class MainActivity : ComponentActivity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(8), dp(24), 0)
         }
+        val pairingPayloadField = EditText(this).apply {
+            hint = getString(R.string.pairing_json_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 2
+            maxLines = 4
+        }
         val originField = EditText(this).apply {
             hint = getString(R.string.usage_host_address_hint)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
@@ -105,8 +152,21 @@ class MainActivity : ComponentActivity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setSingleLine(true)
         }
+        val certificateField = EditText(this).apply {
+            hint = getString(R.string.certificate_sha256_hint)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+        }
+        val hostIDField = EditText(this).apply {
+            hint = getString(R.string.host_id_hint)
+            inputType = InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+        }
+        container.addView(pairingPayloadField)
         container.addView(originField)
         container.addView(tokenField)
+        container.addView(certificateField)
+        container.addView(hostIDField)
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.usage_host_title)
@@ -117,13 +177,35 @@ class MainActivity : ComponentActivity() {
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val error = repository.savePairing(originField.text.toString(), tokenField.text.toString())
+                val pairingPayload = pairingPayloadField.text.toString()
+                val error = if (pairingPayload.isBlank()) {
+                    repository.savePairing(
+                        originField.text.toString(),
+                        tokenField.text.toString(),
+                        certificateField.text.toString(),
+                        hostIDField.text.toString(),
+                    )
+                } else {
+                    runCatching {
+                        val pairing = UsageHostPairing.parse(pairingPayload)
+                        repository.savePairing(
+                            pairing.baseURL,
+                            pairing.token,
+                            pairing.certificateSHA256,
+                            pairing.hostID,
+                        )?.let { throw IllegalArgumentException(it) }
+                    }.exceptionOrNull()?.message
+                }
                 if (error == null) {
                     dialog.dismiss()
                     refreshSnapshot()
                 } else {
                     tokenField.text?.clear()
-                    originField.error = error
+                    if (pairingPayload.isBlank()) {
+                        originField.error = error
+                    } else {
+                        pairingPayloadField.error = error
+                    }
                 }
             }
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {

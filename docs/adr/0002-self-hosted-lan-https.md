@@ -50,9 +50,10 @@ identity-redacted Dashboard Snapshot v1
 - The client uses an instance-scoped TLS trust manager that accepts only the exact paired leaf certificate and checks
   certificate validity. The pin is the server identity, so a private IP address may change without depending on a
   public CA or public DNS name. No global trust override or HTTP fallback is allowed.
-- The listener binds only while the user enables the feature and only on private/link-local interfaces. It exposes
-  authenticated `GET /dashboard/v1/snapshot`; `/usage`, `/cost`, unknown paths, non-GET methods, malformed requests,
-  and unpaired Hosts fail closed.
+- The IPv4 listener runs only while the user enables the feature. CodexBar publishes one selected private/link-local
+  address and rejects connections addressed to any other local endpoint before parsing HTTP. It exposes authenticated
+  `GET /dashboard/v1/snapshot`; `/usage`, `/cost`, unknown paths, non-GET methods, malformed requests, and unpaired
+  Hosts fail closed.
 - Address changes are explicit reader state. The certificate and Host ID remain stable, but the reader must receive the
   new private URL from the Mac; it never scans public networks or silently substitutes an untrusted address.
 - Remote access is deferred. A future adapter may use a user-managed WireGuard network or Tailscale, but it must reuse

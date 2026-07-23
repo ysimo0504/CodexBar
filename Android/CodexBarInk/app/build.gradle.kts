@@ -49,10 +49,10 @@ android {
             buildConfigField("String", "FIXTURE_TOKEN", "\"\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
-        create("tailnet") {
+        create("secure") {
             dimension = "transport"
-            versionNameSuffix = "-tailnet"
-            buildConfigField("String", "TRANSPORT_KIND", "\"tailnet\"")
+            versionNameSuffix = "-secure"
+            buildConfigField("String", "TRANSPORT_KIND", "\"secure\"")
             buildConfigField("String", "FIXTURE_URL", "\"\"")
             buildConfigField("String", "FIXTURE_TOKEN", "\"\"")
             manifestPlaceholders["usesCleartextTraffic"] = "false"

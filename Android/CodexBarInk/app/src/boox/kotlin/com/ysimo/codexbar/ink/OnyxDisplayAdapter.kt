@@ -12,11 +12,12 @@ class OnyxDisplayAdapter(private val generic: DisplayAdapter) : DisplayAdapter {
     private var epdControllerClass: Class<*>? = null
     private var updateModeClass: Class<*>? = null
     private var enabled = true
+    private var colorDevice = false
     private var selectedPartialMode = "GU"
 
     override val capabilityLabel: String
         get() = if (enabled && epdControllerClass != null) {
-            "BOOX $selectedPartialMode partial refresh"
+            "BOOX${if (colorDevice) " color" else ""} $selectedPartialMode partial refresh"
         } else {
             "Generic Android refresh"
         }
@@ -28,9 +29,10 @@ class OnyxDisplayAdapter(private val generic: DisplayAdapter) : DisplayAdapter {
             require(rootView.isAttachedToWindow) { "BOOX root is not attached" }
             epdControllerClass = Class.forName(EPD_CONTROLLER_CLASS)
             updateModeClass = Class.forName(UPDATE_MODE_CLASS)
+            colorDevice = detectColorDevice() || rootView.resources.configuration.isScreenWideColorGamut
             selectedPartialMode = if (supportsRegal()) "REGAL" else "GU"
             setDefaultMode(rootView, selectedPartialMode)
-            Log.i(TAG, "Onyx attached with $selectedPartialMode partial refresh")
+            Log.i(TAG, "Onyx attached color=$colorDevice with $selectedPartialMode partial refresh")
         }
     }
 
@@ -83,8 +85,18 @@ class OnyxDisplayAdapter(private val generic: DisplayAdapter) : DisplayAdapter {
         rootView = null
         epdControllerClass = null
         updateModeClass = null
+        colorDevice = false
         generic.detach()
     }
+
+    private fun detectColorDevice(): Boolean = runCatching {
+        val deviceClass = Class.forName(DEVICE_CLASS)
+        val device = deviceClass.getMethod("currentDevice").invoke(null) ?: return@runCatching false
+        val colorType = device.javaClass.methods
+            .firstOrNull { method -> method.name == "getColorType" && method.parameterCount == 0 }
+            ?.invoke(device) as? Int
+        colorType != null && colorType > 0
+    }.getOrDefault(false)
 
     private fun supportsRegal(): Boolean {
         val method = methodsNamed("supportRegal").firstOrNull() ?: return false
@@ -153,5 +165,6 @@ class OnyxDisplayAdapter(private val generic: DisplayAdapter) : DisplayAdapter {
         const val TAG = "CodexBarInk"
         const val EPD_CONTROLLER_CLASS = "com.onyx.android.sdk.api.device.epd.EpdController"
         const val UPDATE_MODE_CLASS = "com.onyx.android.sdk.api.device.epd.UpdateMode"
+        const val DEVICE_CLASS = "com.onyx.android.sdk.device.Device"
     }
 }

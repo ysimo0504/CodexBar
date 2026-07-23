@@ -151,7 +151,7 @@ struct GeneralPane: View {
                 {
                     SettingsRowLabel(
                         "BOOX Usage Host",
-                        subtitle: "Share the cached Dashboard Snapshot over authenticated Tailscale HTTPS.")
+                        subtitle: "Share the cached Dashboard Snapshot over self-hosted private-LAN HTTPS.")
                 }
 
                 LabeledContent("Status") {
@@ -172,6 +172,49 @@ struct GeneralPane: View {
                     }
                 }
 
+                if let pairingURL = self.inkUsageHostCoordinator.pairingURL {
+                    LabeledContent("Reader address") {
+                        HStack {
+                            Text(verbatim: pairingURL)
+                                .textSelection(.enabled)
+                            Button("Copy") { self.inkUsageHostCoordinator.copyPairingURL() }
+                        }
+                    }
+                }
+
+                if let fingerprint = self.inkUsageHostCoordinator.certificateFingerprint {
+                    LabeledContent("TLS certificate") {
+                        HStack {
+                            Text(verbatim: fingerprint)
+                                .font(.system(.caption, design: .monospaced))
+                                .lineLimit(1)
+                                .textSelection(.enabled)
+                            Button("Copy") { self.inkUsageHostCoordinator.copyCertificateFingerprint() }
+                        }
+                    }
+                }
+
+                if let hostID = self.inkUsageHostCoordinator.hostID {
+                    LabeledContent("Host ID") {
+                        HStack {
+                            Text(verbatim: hostID)
+                                .font(.system(.caption, design: .monospaced))
+                                .lineLimit(1)
+                                .textSelection(.enabled)
+                            Button("Copy") { self.inkUsageHostCoordinator.copyHostID() }
+                        }
+                    }
+                }
+
+                if self.inkUsageHostCoordinator.pairingPayload != nil {
+                    HStack {
+                        Spacer()
+                        Button("Copy pairing JSON") {
+                            self.inkUsageHostCoordinator.copyPairingPayload()
+                        }
+                    }
+                }
+
                 if self.inkUsageHostCoordinator.isEnabled {
                     if let nextRetryAt = self.inkUsageHostCoordinator.nextRetryAt {
                         LabeledContent("Next retry") {
@@ -188,7 +231,8 @@ struct GeneralPane: View {
                 Text("E-ink reader")
             } footer: {
                 SettingsSectionFooter(
-                    "Requires the signed CodexBar app and Tailscale on both devices. No LAN HTTP is exposed.")
+                    "Works on the current private LAN without a cloud account. The reader pins this Mac's certificate; "
+                        + "no LAN HTTP or public listener is exposed.")
             }
 
             Section {

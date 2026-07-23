@@ -38,6 +38,9 @@ import sys
 from pathlib import Path
 
 plist = plistlib.loads(Path(sys.argv[1]).read_bytes())
+assert plist.get("NSLocalNetworkUsageDescription") == (
+    "CodexBar shares a read-only usage snapshot with your paired e-ink reader on this private network."
+)
 declarations = plist.get("UTExportedTypeDeclarations")
 assert declarations == [{
     "UTTypeIdentifier": "com.steipete.codexbar.menu-layout-item",

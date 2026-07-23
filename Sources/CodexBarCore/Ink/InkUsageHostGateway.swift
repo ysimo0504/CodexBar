@@ -46,12 +46,12 @@ public actor InkUsageHostGateway {
     public static let snapshotPath = "/dashboard/v1/snapshot"
 
     private var token: String
-    private var externalHost: String?
+    private var externalAuthority: (name: String, port: Int?)?
     private let snapshotProvider: SnapshotProvider
 
     public init(token: String, externalHost: String? = nil, snapshotProvider: @escaping SnapshotProvider) {
         self.token = token
-        self.externalHost = Self.canonicalExternalHost(externalHost)
+        self.externalAuthority = Self.canonicalExternalAuthority(externalHost)
         self.snapshotProvider = snapshotProvider
     }
 
@@ -60,7 +60,7 @@ public actor InkUsageHostGateway {
     }
 
     public func updateExternalHost(_ host: String?) {
-        self.externalHost = Self.canonicalExternalHost(host)
+        self.externalAuthority = Self.canonicalExternalAuthority(host)
     }
 
     public func handle(_ request: InkUsageHostRequest) async -> InkUsageHostResponse {
@@ -114,10 +114,9 @@ public actor InkUsageHostGateway {
         case "127.0.0.1", "localhost", "localhost.", "[::1]":
             return true
         default:
-            guard let externalHost = self.externalHost,
-                  parsed.name == externalHost
-            else {
-                return false
+            guard let expected = self.externalAuthority, parsed.name == expected.name else { return false }
+            if let expectedPort = expected.port {
+                return parsed.port == expectedPort
             }
             return parsed.port == nil || parsed.port == 443
         }
@@ -129,17 +128,19 @@ public actor InkUsageHostGateway {
         }
     }
 
-    private static func canonicalExternalHost(_ raw: String?) -> String? {
-        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+    private static func canonicalExternalAuthority(_ raw: String?) -> (name: String, port: Int?)? {
+        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
               !value.isEmpty
         else {
             return nil
         }
-        if value.hasSuffix(".") {
-            value.removeLast()
+        if var parsed = Self.parseHost(value) {
+            if parsed.name.hasSuffix(".") {
+                parsed.name.removeLast()
+            }
+            return parsed.name.isEmpty ? nil : parsed
         }
-        guard !value.isEmpty, !value.contains(":"), !value.contains(",") else { return nil }
-        return value
+        return nil
     }
 
     private static func parseHost(_ raw: String) -> (name: String, port: Int?)? {

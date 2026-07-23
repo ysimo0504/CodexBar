@@ -14,6 +14,8 @@ class UsageHostConfigStore(context: Context) {
     data class Configuration(
         val endpoint: UsageHostEndpoint,
         val token: String,
+        val certificateSHA256: String,
+        val hostID: String,
     )
 
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -22,10 +24,14 @@ class UsageHostConfigStore(context: Context) {
         val origin = preferences.getString(KEY_ORIGIN, null) ?: return null
         val initializationVector = preferences.getString(KEY_INITIALIZATION_VECTOR, null) ?: return null
         val ciphertext = preferences.getString(KEY_CIPHERTEXT, null) ?: return null
+        val certificateSHA256 = preferences.getString(KEY_CERTIFICATE_SHA256, null) ?: return null
+        val hostID = preferences.getString(KEY_HOST_ID, null) ?: return null
         return runCatching {
             Configuration(
                 endpoint = UsageHostEndpoint.parse(origin),
                 token = decrypt(initializationVector, ciphertext),
+                certificateSHA256 = normalizeCertificateSHA256(certificateSHA256),
+                hostID = normalizeHostID(hostID),
             )
         }.getOrNull()
     }
@@ -33,23 +39,27 @@ class UsageHostConfigStore(context: Context) {
     fun pairingOrigin(): String? = preferences.getString(KEY_ORIGIN, null)
         ?.let { origin -> runCatching { UsageHostEndpoint.parse(origin).origin }.getOrNull() }
 
-    fun save(origin: String, rawToken: String): Configuration {
+    fun save(origin: String, rawToken: String, rawCertificateSHA256: String, rawHostID: String): Configuration {
         val endpoint = UsageHostEndpoint.parse(origin)
         val token = rawToken.trim()
         require(token.isNotEmpty() && token.none(Char::isWhitespace)) {
             "Enter the reader token without spaces"
         }
+        val certificateSHA256 = normalizeCertificateSHA256(rawCertificateSHA256)
+        val hostID = normalizeHostID(rawHostID)
         val encrypted = encrypt(token)
         check(
             preferences.edit()
                 .putString(KEY_ORIGIN, endpoint.origin)
                 .putString(KEY_INITIALIZATION_VECTOR, encrypted.initializationVector)
                 .putString(KEY_CIPHERTEXT, encrypted.ciphertext)
+                .putString(KEY_CERTIFICATE_SHA256, certificateSHA256)
+                .putString(KEY_HOST_ID, hostID)
                 .commit(),
         ) {
             "Could not save pairing"
         }
-        return Configuration(endpoint, token)
+        return Configuration(endpoint, token, certificateSHA256, hostID)
     }
 
     fun clear() {
@@ -99,6 +109,22 @@ class UsageHostConfigStore(context: Context) {
         }
     }
 
+    private fun normalizeCertificateSHA256(rawValue: String): String {
+        val value = rawValue.trim().lowercase()
+        require(value.length == 64 && value.all { it in '0'..'9' || it in 'a'..'f' }) {
+            "Enter the 64-character TLS certificate SHA-256"
+        }
+        return value
+    }
+
+    private fun normalizeHostID(rawValue: String): String {
+        val value = rawValue.trim().lowercase()
+        require(value.length in 8..128 && value.all { it.isLetterOrDigit() || it == '-' }) {
+            "Enter the paired Host ID"
+        }
+        return value
+    }
+
     private data class EncryptedValue(
         val initializationVector: String,
         val ciphertext: String,
@@ -109,6 +135,8 @@ class UsageHostConfigStore(context: Context) {
         const val KEY_ORIGIN = "origin"
         const val KEY_INITIALIZATION_VECTOR = "token_iv"
         const val KEY_CIPHERTEXT = "token_ciphertext"
+        const val KEY_CERTIFICATE_SHA256 = "certificate_sha256"
+        const val KEY_HOST_ID = "host_id"
         const val KEY_ALIAS = "codexbar_ink_reader_token_v1"
         const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         const val TRANSFORMATION = "AES/GCM/NoPadding"

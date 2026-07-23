@@ -9,6 +9,7 @@ import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.util.concurrent.Executors
+import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLException
 
 class DashboardRepository(private val context: Context) {
@@ -29,8 +30,8 @@ class DashboardRepository(private val context: Context) {
 
     fun pairingOrigin(): String? = configStore.pairingOrigin()
 
-    fun savePairing(origin: String, token: String): String? = runCatching {
-        configStore.save(origin, token)
+    fun savePairing(origin: String, token: String, certificateSHA256: String, hostID: String): String? = runCatching {
+        configStore.save(origin, token, certificateSHA256, hostID)
         authenticationBlocked = false
         pairingGeneration += 1
         null
@@ -55,7 +56,7 @@ class DashboardRepository(private val context: Context) {
         if (stored != null) {
             return Result(stored, "Cached sanitized last-good")
         }
-        if (BuildConfig.TRANSPORT_KIND == "tailnet") {
+        if (BuildConfig.TRANSPORT_KIND == "secure") {
             return Result(null, "Usage Host not paired", "Tap HOST to pair")
         }
         return runCatching {
@@ -72,7 +73,7 @@ class DashboardRepository(private val context: Context) {
         val generation = pairingGeneration
         executor.execute {
             val result = when (BuildConfig.TRANSPORT_KIND) {
-                "tailnet" -> fetchUsageHost(previous, generation)
+                "secure" -> fetchUsageHost(previous, generation)
                 "fixture" -> fetchFixture(previous)
                 else -> loadBundled(previous)
             }
@@ -116,8 +117,9 @@ class DashboardRepository(private val context: Context) {
             configuration.endpoint.snapshotUrl,
             configuration.token,
             previous,
-            "Authenticated Usage Host",
+            "Authenticated LAN Usage Host",
             generation,
+            configuration.certificateSHA256,
         )
     }
 
@@ -127,10 +129,14 @@ class DashboardRepository(private val context: Context) {
         previous: ReaderState?,
         successLabel: String,
         pairingGeneration: Long? = null,
+        certificateSHA256: String? = null,
     ): Result {
         var connection: HttpURLConnection? = null
         return try {
             connection = (url.openConnection() as HttpURLConnection).apply {
+                if (this is HttpsURLConnection && certificateSHA256 != null) {
+                    PinnedTLS.configure(this, certificateSHA256)
+                }
                 requestMethod = "GET"
                 instanceFollowRedirects = false
                 connectTimeout = 5_000

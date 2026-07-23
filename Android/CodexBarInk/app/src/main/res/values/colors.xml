@@ -5,4 +5,8 @@
     <color name="ink_light">#D2CEC3</color>
     <color name="paper">#F5F2E9</color>
     <color name="paper_card">#ECE8DD</color>
+    <color name="paper_codex">#E1EEE9</color>
+    <color name="paper_claude">#F2E3D7</color>
+    <color name="codex_accent">#1F675C</color>
+    <color name="claude_accent">#95502E</color>
 </resources>

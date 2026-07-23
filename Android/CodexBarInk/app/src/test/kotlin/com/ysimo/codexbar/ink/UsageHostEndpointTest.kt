@@ -14,6 +14,19 @@ class UsageHostEndpointTest {
             "https://codexbar-host.tail1234.ts.net/dashboard/v1/snapshot",
             endpoint.snapshotUrl.toString(),
         )
+        assertEquals(false, endpoint.usesPrivateLAN)
+    }
+
+    @Test
+    fun `accepts an exact private LAN https origin with paired port`() {
+        val endpoint = UsageHostEndpoint.parse("https://192.168.31.42:43121")
+
+        assertEquals("https://192.168.31.42:43121", endpoint.origin)
+        assertEquals(
+            "https://192.168.31.42:43121/dashboard/v1/snapshot",
+            endpoint.snapshotUrl.toString(),
+        )
+        assertEquals(true, endpoint.usesPrivateLAN)
     }
 
     @Test
@@ -32,10 +45,12 @@ class UsageHostEndpointTest {
     }
 
     @Test
-    fun `rejects non tailnet and malformed hosts`() {
+    fun `rejects public missing port and malformed hosts`() {
         listOf(
             "https://example.com",
             "https://192.0.2.1",
+            "https://192.168.31.42",
+            "https://192.168.31.42:443/path",
             "not a url",
         ).forEach { value ->
             assertThrows(value, IllegalArgumentException::class.java) {

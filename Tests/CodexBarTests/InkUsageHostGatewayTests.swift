@@ -100,6 +100,20 @@ struct InkUsageHostGatewayTests {
     }
 
     @Test
+    func `private LAN authority requires the exact paired address and port`() async {
+        let gateway = Self.gateway(externalHost: "192.168.31.42:43121")
+        let exact = await gateway.handle(Self.request(host: "192.168.31.42:43121"))
+        let missingPort = await gateway.handle(Self.request(host: "192.168.31.42"))
+        let wrongPort = await gateway.handle(Self.request(host: "192.168.31.42:43122"))
+        let wrongAddress = await gateway.handle(Self.request(host: "192.168.31.43:43121"))
+
+        #expect(exact.statusCode == 200)
+        for response in [missingPort, wrongPort, wrongAddress] {
+            #expect(response.statusCode == 403)
+        }
+    }
+
+    @Test
     func `token rotation invalidates the previous token without restarting the gateway`() async {
         let gateway = Self.gateway()
         let previous = await gateway.handle(Self.request())

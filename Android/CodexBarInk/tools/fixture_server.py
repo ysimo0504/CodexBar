@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Snapshot-only HTTP server for the redacted BOOX fixture spike."""
+"""Snapshot-only HTTP(S) server for the redacted BOOX fixture spike."""
 
 from __future__ import annotations
 
 import argparse
 import http.server
 import os
+import ssl
 from pathlib import Path
 
 
@@ -61,6 +62,8 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=project_root / "docs" / "fixtures" / "dashboard-snapshot-v1-canonical.json",
     )
+    parser.add_argument("--tls-cert", type=Path)
+    parser.add_argument("--tls-key", type=Path)
     return parser.parse_args()
 
 
@@ -69,7 +72,16 @@ def main() -> None:
     SnapshotHandler.fixture_bytes = args.fixture.read_bytes()
     SnapshotHandler.expected_token = os.environ.get("CODEXBAR_INK_FIXTURE_TOKEN", DEFAULT_TOKEN)
     server = http.server.ThreadingHTTPServer((args.host, args.port), SnapshotHandler)
-    print(f"Fixture snapshot server listening on port {args.port}", flush=True)
+    if bool(args.tls_cert) != bool(args.tls_key):
+        raise SystemExit("--tls-cert and --tls-key must be supplied together")
+    scheme = "http"
+    if args.tls_cert and args.tls_key:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(args.tls_cert, args.tls_key)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+        scheme = "https"
+    print(f"Fixture snapshot server listening at {scheme}://{args.host}:{args.port}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
