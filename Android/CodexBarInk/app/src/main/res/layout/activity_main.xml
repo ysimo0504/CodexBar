@@ -256,24 +256,6 @@
             android:layout_height="match_parent" />
 
         <TextView
-            android:id="@+id/screen_button"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="0.8"
-            android:background="@drawable/button_ink"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:paddingHorizontal="8dp"
-            android:text="@string/export_screen"
-            android:textColor="@color/paper"
-            android:textSize="14sp" />
-
-        <Space
-            android:layout_width="8dp"
-            android:layout_height="match_parent" />
-
-        <TextView
             android:id="@+id/clean_button"
             android:layout_width="0dp"
             android:layout_height="48dp"

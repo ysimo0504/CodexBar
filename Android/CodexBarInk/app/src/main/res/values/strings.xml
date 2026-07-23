@@ -3,7 +3,6 @@
     <string name="dashboard_title">CODEXBAR INK</string>
     <string name="refresh_now">REFRESH NOW</string>
     <string name="configure_host">HOST</string>
-    <string name="export_screen">SCREEN</string>
     <string name="clean_ghosting">CLEAN GHOSTING</string>
     <string name="waiting_for_fixture">Waiting for snapshot…</string>
     <string name="usage_host_title">Usage Host pairing</string>
@@ -14,10 +13,4 @@
     <string name="host_id_hint">Host ID</string>
     <string name="save_pairing">SAVE</string>
     <string name="forget_pairing">FORGET</string>
-    <string name="screensaver_privacy_title">Show usage on the lock screen?</string>
-    <string name="screensaver_privacy_message">The exported image contains your current usage values. Anyone who sees the sleeping device may read them.</string>
-    <string name="export_screensaver">EXPORT IMAGE</string>
-    <string name="screensaver_saved_title">Screensaver image saved</string>
-    <string name="screensaver_saved_message">Open the image, then choose Set As &gt; Set as screensaver. Or select it later from Pictures/CodexBar Ink.</string>
-    <string name="open_screensaver_image">OPEN IMAGE</string>
 </resources>

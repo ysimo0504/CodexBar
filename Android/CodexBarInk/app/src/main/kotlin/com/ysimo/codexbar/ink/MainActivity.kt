@@ -1,7 +1,6 @@
 package com.ysimo.codexbar.ink
 
 import android.app.AlertDialog
-import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.os.Bundle
@@ -29,7 +28,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var repository: DashboardRepository
     private lateinit var displayAdapter: DisplayAdapter
-    private lateinit var screensaverExporter: DashboardScreensaverExporter
     private var readerState: ReaderState? = null
     private var presentation: DashboardPresentation? = null
     private var sourceLabel: String = "Starting"
@@ -51,7 +49,6 @@ class MainActivity : ComponentActivity() {
 
         repository = DashboardRepository(applicationContext)
         displayAdapter = DisplayAdapterFactory.create()
-        screensaverExporter = DashboardScreensaverExporter(applicationContext)
         binding.codexProgress.progressTintList = ColorStateList.valueOf(getColor(R.color.codex_accent))
         binding.claudeProgress.progressTintList = ColorStateList.valueOf(getColor(R.color.claude_accent))
         binding.dashboardRoot.post {
@@ -63,7 +60,6 @@ class MainActivity : ComponentActivity() {
 
         binding.refreshButton.setOnClickListener { refreshSnapshot() }
         binding.hostButton.setOnClickListener { showPairingDialog() }
-        binding.screenButton.setOnClickListener { confirmScreensaverExport() }
         binding.cleanButton.setOnClickListener {
             if (adapterAttached) displayAdapter.fullRefresh("manual-ghost-cleanup")
             binding.transportStatusText.text = "$sourceLabel · ${displayAdapter.capabilityLabel} · cleaned"
@@ -86,42 +82,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         displayAdapter.detach()
-        screensaverExporter.close()
         repository.close()
         super.onDestroy()
-    }
-
-    private fun confirmScreensaverExport() {
-        AlertDialog.Builder(this)
-            .setTitle(R.string.screensaver_privacy_title)
-            .setMessage(R.string.screensaver_privacy_message)
-            .setPositiveButton(R.string.export_screensaver) { _, _ -> exportScreensaver() }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun exportScreensaver() {
-        screensaverExporter.export(binding.dashboardRoot, binding.actionRow) { result ->
-            result.onSuccess { uri ->
-                binding.transportStatusText.text =
-                    "Saved to Pictures/CodexBar Ink · select it in BOOX Screensaver"
-                displayAdapter.fullRefresh("screensaver-exported")
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.screensaver_saved_title)
-                    .setMessage(R.string.screensaver_saved_message)
-                    .setPositiveButton(R.string.open_screensaver_image) { _, _ ->
-                        startActivity(
-                            Intent(Intent.ACTION_VIEW)
-                                .setDataAndType(uri, "image/png")
-                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                        )
-                    }
-                    .setNegativeButton(android.R.string.ok, null)
-                    .show()
-            }.onFailure {
-                binding.transportStatusText.text = "Could not export screensaver image"
-            }
-        }
     }
 
     private fun refreshSnapshot() {
