@@ -45,11 +45,11 @@ public actor InkUsageHostGateway {
 
     public static let snapshotPath = "/dashboard/v1/snapshot"
 
-    private var token: String
+    private var token: String?
     private var externalAuthority: (name: String, port: Int?)?
     private let snapshotProvider: SnapshotProvider
 
-    public init(token: String, externalHost: String? = nil, snapshotProvider: @escaping SnapshotProvider) {
+    public init(token: String? = nil, externalHost: String? = nil, snapshotProvider: @escaping SnapshotProvider) {
         self.token = token
         self.externalAuthority = Self.canonicalExternalAuthority(externalHost)
         self.snapshotProvider = snapshotProvider
@@ -83,14 +83,16 @@ public actor InkUsageHostGateway {
         guard request.method == "GET" else {
             return Self.error(status: 405, reason: "Method Not Allowed", code: "method-not-allowed")
         }
-        guard let authorization = authorizationHeaders.first,
-              Self.isAuthorized(authorization, token: self.token)
-        else {
-            return Self.error(
-                status: 401,
-                reason: "Unauthorized",
-                code: "unauthorized",
-                extraHeaders: [("WWW-Authenticate", "Bearer")])
+        if let token = self.token {
+            guard let authorization = authorizationHeaders.first,
+                  Self.isAuthorized(authorization, token: token)
+            else {
+                return Self.error(
+                    status: 401,
+                    reason: "Unauthorized",
+                    code: "unauthorized",
+                    extraHeaders: [("WWW-Authenticate", "Bearer")])
+            }
         }
 
         do {

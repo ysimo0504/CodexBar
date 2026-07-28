@@ -9,8 +9,6 @@ import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.util.concurrent.Executors
-import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLException
 
 class DashboardRepository(private val context: Context) {
     data class Result(
@@ -24,29 +22,20 @@ class DashboardRepository(private val context: Context) {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile
-    private var authenticationBlocked = false
-    @Volatile
-    private var pairingGeneration = 0L
+    private var hostGeneration = 0L
 
-    fun pairingOrigin(): String? = configStore.pairingOrigin()
+    fun hostOrigin(): String? = configStore.hostOrigin()
 
-    fun savePairing(origin: String, token: String, certificateSHA256: String, hostID: String): String? = runCatching {
-        configStore.save(origin, token, certificateSHA256, hostID)
-        authenticationBlocked = false
-        pairingGeneration += 1
+    fun saveHost(origin: String): String? = runCatching {
+        configStore.save(origin)
+        preferences.edit().remove(KEY_STATE).commit()
+        hostGeneration += 1
         null
     }.getOrElse { error ->
         when (error) {
-            is IllegalArgumentException -> error.message ?: "Invalid pairing"
-            else -> "Could not save pairing"
+            is IllegalArgumentException -> error.message ?: "Invalid Host"
+            else -> "Could not save Host"
         }
-    }
-
-    fun clearPairing() {
-        pairingGeneration += 1
-        configStore.clear()
-        preferences.edit().clear().commit()
-        authenticationBlocked = false
     }
 
     fun loadInitial(): Result {
@@ -56,8 +45,8 @@ class DashboardRepository(private val context: Context) {
         if (stored != null) {
             return Result(stored, "Cached sanitized last-good")
         }
-        if (BuildConfig.TRANSPORT_KIND == "secure") {
-            return Result(null, "Usage Host not paired", "Tap HOST to pair")
+        if (BuildConfig.TRANSPORT_KIND == "lan") {
+            return Result(null, "Host not set", "Open settings")
         }
         return runCatching {
             val raw = context.assets.open(FIXTURE_NAME).bufferedReader().use { it.readText() }
@@ -70,16 +59,16 @@ class DashboardRepository(private val context: Context) {
     }
 
     fun refresh(previous: ReaderState?, completion: (Result) -> Unit) {
-        val generation = pairingGeneration
+        val generation = hostGeneration
         executor.execute {
             val result = when (BuildConfig.TRANSPORT_KIND) {
-                "secure" -> fetchUsageHost(previous, generation)
+                "lan" -> fetchUsageHost(previous, generation)
                 "fixture" -> fetchFixture(previous)
                 else -> loadBundled(previous)
             }
-            if (generation == pairingGeneration) {
+            if (generation == hostGeneration) {
                 mainHandler.post {
-                    if (generation == pairingGeneration) completion(result)
+                    if (generation == hostGeneration) completion(result)
                 }
             }
         }
@@ -104,67 +93,52 @@ class DashboardRepository(private val context: Context) {
         if (url.path != SNAPSHOT_PATH) {
             return Result(previous, "Fixture rejected", "Use an exact snapshot fixture URL")
         }
-        return fetch(url, BuildConfig.FIXTURE_TOKEN, previous, "Authenticated fixture host")
+        return fetch(url, previous, "Authenticated fixture host", token = BuildConfig.FIXTURE_TOKEN)
     }
 
     private fun fetchUsageHost(previous: ReaderState?, generation: Long): Result {
-        if (authenticationBlocked) {
-            return Result(previous, "Authentication paused", "Tap HOST to re-pair")
-        }
-        val configuration = configStore.load()
-            ?: return Result(previous, "Usage Host not paired", "Tap HOST to pair")
+        val endpoint = configStore.load()
+            ?: return Result(previous, "Host not set", "Open settings")
         return fetch(
-            configuration.endpoint.snapshotUrl,
-            configuration.token,
+            endpoint.snapshotUrl,
             previous,
-            "Authenticated LAN Usage Host",
+            "LAN Usage Host",
             generation,
-            configuration.certificateSHA256,
         )
     }
 
     private fun fetch(
         url: URL,
-        token: String,
         previous: ReaderState?,
         successLabel: String,
-        pairingGeneration: Long? = null,
-        certificateSHA256: String? = null,
+        hostGeneration: Long? = null,
+        token: String? = null,
     ): Result {
         var connection: HttpURLConnection? = null
         return try {
             connection = (url.openConnection() as HttpURLConnection).apply {
-                if (this is HttpsURLConnection && certificateSHA256 != null) {
-                    PinnedTLS.configure(this, certificateSHA256)
-                }
                 requestMethod = "GET"
                 instanceFollowRedirects = false
                 connectTimeout = 5_000
                 readTimeout = 8_000
                 useCaches = false
-                setRequestProperty("Authorization", "Bearer $token")
+                if (!token.isNullOrEmpty()) {
+                    setRequestProperty("Authorization", "Bearer $token")
+                }
                 setRequestProperty("Accept", "application/json")
                 setRequestProperty("Cache-Control", "no-store")
             }
             when (connection.responseCode) {
                 HttpURLConnection.HTTP_OK -> Unit
-                HttpURLConnection.HTTP_UNAUTHORIZED -> {
-                    if (pairingGeneration != null && pairingGeneration == this.pairingGeneration) {
-                        authenticationBlocked = true
-                    }
-                    throw TransportFailure("Authentication expired · re-pair required")
-                }
                 in 300..399 -> throw TransportFailure("Redirect blocked · check Usage Host address")
                 else -> throw TransportFailure("Usage Host rejected snapshot request")
             }
             val raw = connection.inputStream.use(::readBoundedUtf8)
             val state = ReaderReducer.decodeAndMerge(raw, previous, receivedAtEpochMillis = now())
-            if (pairingGeneration == null || pairingGeneration == this.pairingGeneration) {
+            if (hostGeneration == null || hostGeneration == this.hostGeneration) {
                 persist(state)
             }
             Result(state, successLabel)
-        } catch (_: SSLException) {
-            Result(previous, "TLS failed · keeping last-good", "TLS verification failed · no fallback")
         } catch (_: SocketTimeoutException) {
             Result(previous, "Network failed · keeping last-good", "Usage Host timed out")
         } catch (error: TransportFailure) {

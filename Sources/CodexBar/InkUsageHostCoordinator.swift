@@ -26,23 +26,18 @@ final class InkUsageHostCoordinator {
     }
 
     typealias SnapshotProvider = @MainActor @Sendable () throws -> Data
-    typealias ServerFactory = @Sendable (InkUsageHostGateway) -> any InkLANHTTPSServing
+    typealias ServerFactory = @Sendable (InkUsageHostGateway) -> any InkLANHTTPServing
     typealias AddressProvider = @Sendable () -> String?
 
     private static let enabledDefaultsKey = "inkUsageHostEnabled"
     private let defaults: UserDefaults
-    private let tokenStore: any ReaderTokenStoring
-    private let identityStore: any InkTLSIdentityStoring
     private let addressProvider: AddressProvider
     private let snapshotProvider: SnapshotProvider
     private let serverFactory: ServerFactory
     private let pathMonitor = NWPathMonitor()
     private let pathQueue = DispatchQueue(label: "com.ysimo.codexbar.ink.path-monitor")
     private var observers: [NSObjectProtocol] = []
-    private var server: (any InkLANHTTPSServing)?
-    private var gateway: InkUsageHostGateway?
-    private var token: String?
-    private var identity: InkTLSIdentityMaterial?
+    private var server: (any InkLANHTTPServing)?
     private var endpoint: InkLANEndpoint?
     private var operationTask: Task<Void, Never>?
     private var operationGeneration = 0
@@ -51,26 +46,18 @@ final class InkUsageHostCoordinator {
     private var hasStarted = false
 
     private(set) var state: State = .disabled
-    private(set) var tokenFingerprint: String?
-    private(set) var certificateFingerprint: String?
-    private(set) var hostID: String?
-    private(set) var pairingURL: String?
-    private(set) var pairingPayload: String?
+    private(set) var hostURL: String?
     private(set) var nextRetryAt: Date?
     var isEnabled: Bool
 
     init(
         defaults: UserDefaults = .standard,
-        tokenStore: any ReaderTokenStoring = KeychainReaderTokenStore(),
-        identityStore: any InkTLSIdentityStoring = FileInkTLSIdentityStore.applicationDefault(),
         addressProvider: @escaping AddressProvider = { InkPrivateLANAddress.currentIPv4() },
         monitorLifecycle: Bool = true,
         snapshotProvider: @escaping SnapshotProvider,
-        serverFactory: @escaping ServerFactory = { InkLANHTTPSServer(gateway: $0) })
+        serverFactory: @escaping ServerFactory = { InkLANHTTPServer(gateway: $0) })
     {
         self.defaults = defaults
-        self.tokenStore = tokenStore
-        self.identityStore = identityStore
         self.addressProvider = addressProvider
         self.snapshotProvider = snapshotProvider
         self.serverFactory = serverFactory
@@ -99,6 +86,7 @@ final class InkUsageHostCoordinator {
 
     func retryNow() {
         guard self.hasStarted, self.isEnabled, !self.isSleeping else { return }
+        guard self.operationTask == nil else { return }
         self.retryTask?.cancel()
         self.retryTask = nil
         self.nextRetryAt = nil
@@ -107,56 +95,6 @@ final class InkUsageHostCoordinator {
             return
         }
         self.restart()
-    }
-
-    func rotateToken() {
-        guard self.hasStarted, self.isEnabled else { return }
-        self.operationGeneration &+= 1
-        let generation = self.operationGeneration
-        self.operationTask?.cancel()
-        self.operationTask = Task { [weak self] in
-            guard let self else { return }
-            defer { self.finishOperation(generation) }
-            do {
-                let token = try ReaderTokenGenerator.generate()
-                try self.tokenStore.save(token)
-                guard generation == self.operationGeneration, self.isEnabled, !Task.isCancelled else { return }
-                self.token = token
-                self.tokenFingerprint = ReaderTokenGenerator.shortFingerprint(token)
-                await self.gateway?.updateToken(token)
-                self.refreshPairingPayload()
-            } catch {
-                guard generation == self.operationGeneration, self.isEnabled, !Task.isCancelled else { return }
-                self.state = .degraded("Reader token unavailable")
-                self.scheduleRetry()
-            }
-        }
-    }
-
-    func copyReaderToken() {
-        self.copyToPasteboard(self.token)
-    }
-
-    func copyPairingURL() {
-        self.copyToPasteboard(self.pairingURL)
-    }
-
-    func copyCertificateFingerprint() {
-        self.copyToPasteboard(self.certificateFingerprint)
-    }
-
-    func copyHostID() {
-        self.copyToPasteboard(self.hostID)
-    }
-
-    func copyPairingPayload() {
-        self.copyToPasteboard(self.pairingPayload)
-    }
-
-    private func copyToPasteboard(_ value: String?) {
-        guard let value else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(value, forType: .string)
     }
 
     func prepareForTermination() {
@@ -184,39 +122,26 @@ final class InkUsageHostCoordinator {
             guard let self else { return }
             defer { self.finishOperation(generation) }
             do {
-                let token = try self.loadOrCreateToken()
-                let identity = try self.identityStore.loadOrCreate()
                 let snapshotProvider = self.snapshotProvider
-                let gateway = InkUsageHostGateway(token: token) {
+                let gateway = InkUsageHostGateway {
                     try await snapshotProvider()
                 }
                 let server = self.serverFactory(gateway)
-                let endpoint = try await server.start(identity: identity, address: address)
+                let endpoint = try await server.start(address: address)
                 guard generation == self.operationGeneration, self.isEnabled, !Task.isCancelled else {
                     server.stop()
                     return
                 }
                 await gateway.updateExternalHost(endpoint.authority)
-                self.token = token
-                self.identity = identity
                 self.endpoint = endpoint
-                self.gateway = gateway
                 self.server = server
-                self.tokenFingerprint = ReaderTokenGenerator.shortFingerprint(token)
-                self.certificateFingerprint = identity.certificateSHA256
-                self.hostID = identity.hostID
-                self.pairingURL = endpoint.baseURL
-                self.refreshPairingPayload()
+                self.hostURL = endpoint.baseURL
                 self.state = .lanReady(url: endpoint.baseURL)
                 self.retryTask?.cancel()
                 self.retryTask = nil
                 self.nextRetryAt = nil
             } catch is CancellationError {
                 return
-            } catch is InkTLSIdentityStoreError {
-                guard generation == self.operationGeneration, self.isEnabled, !Task.isCancelled else { return }
-                self.state = .degraded("TLS identity unavailable")
-                self.scheduleRetry()
             } catch {
                 guard generation == self.operationGeneration, self.isEnabled, !Task.isCancelled else { return }
                 self.state = .degraded("LAN Usage Host unavailable")
@@ -232,9 +157,7 @@ final class InkUsageHostCoordinator {
         self.server?.stop()
         self.server = nil
         self.endpoint = nil
-        self.gateway = nil
-        self.pairingURL = nil
-        self.pairingPayload = nil
+        self.hostURL = nil
         self.start()
     }
 
@@ -247,44 +170,9 @@ final class InkUsageHostCoordinator {
         self.nextRetryAt = nil
         self.server?.stop()
         self.server = nil
-        self.gateway = nil
-        self.token = nil
-        self.identity = nil
         self.endpoint = nil
-        self.tokenFingerprint = nil
-        self.certificateFingerprint = nil
-        self.hostID = nil
-        self.pairingURL = nil
-        self.pairingPayload = nil
+        self.hostURL = nil
         self.state = .disabled
-    }
-
-    private func loadOrCreateToken() throws -> String {
-        if let token = try self.tokenStore.load() { return token }
-        let token = try ReaderTokenGenerator.generate()
-        try self.tokenStore.save(token)
-        return token
-    }
-
-    private func refreshPairingPayload() {
-        guard let endpoint, let token, let identity else {
-            self.pairingPayload = nil
-            return
-        }
-        let object: [String: Any] = [
-            "version": 1,
-            "baseURL": endpoint.baseURL,
-            "hostID": identity.hostID,
-            "certificateSHA256": identity.certificateSHA256,
-            "token": token,
-        ]
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
-              let payload = String(data: data, encoding: .utf8)
-        else {
-            self.pairingPayload = nil
-            return
-        }
-        self.pairingPayload = payload
     }
 
     private func scheduleRetry() {
@@ -319,10 +207,8 @@ final class InkUsageHostCoordinator {
         self.nextRetryAt = nil
         self.server?.stop()
         self.server = nil
-        self.gateway = nil
         self.endpoint = nil
-        self.pairingURL = nil
-        self.pairingPayload = nil
+        self.hostURL = nil
         if self.isEnabled {
             self.state = .sleeping
         }
@@ -360,7 +246,8 @@ final class InkUsageHostCoordinator {
         })
         self.pathMonitor.pathUpdateHandler = { [weak self] path in
             guard path.status == .satisfied else { return }
-            Task { @MainActor [weak self] in self?.handleNetworkAvailable() }
+            Task { @MainActor [weak self] in self?.handleNetworkAvailable()
+            }
         }
         self.pathMonitor.start(queue: self.pathQueue)
     }

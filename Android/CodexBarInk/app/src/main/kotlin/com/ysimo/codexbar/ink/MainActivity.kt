@@ -1,18 +1,17 @@
 package com.ysimo.codexbar.ink
 
 import android.app.AlertDialog
-import android.content.res.ColorStateList
-import android.graphics.Color
+import android.graphics.drawable.ClipDrawable
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowInsets
 import android.widget.EditText
-import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.core.view.WindowCompat
@@ -25,6 +24,18 @@ import com.ysimo.codexbar.ink.core.SemanticChangeSet
 import com.ysimo.codexbar.ink.databinding.ActivityMainBinding
 
 class MainActivity : ComponentActivity() {
+    private data class ProviderBlock(
+        val providerID: String,
+        val root: View,
+        val name: TextView,
+        val remaining: TextView,
+        val primary: TextView,
+        val reset: TextView,
+        val secondary: TextView,
+        val status: TextView,
+        val progress: ProgressBar,
+    )
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var repository: DashboardRepository
     private lateinit var displayAdapter: DisplayAdapter
@@ -32,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private var presentation: DashboardPresentation? = null
     private var sourceLabel: String = "Starting"
     private var adapterAttached = false
+    private val genericProviderBlocks = mutableListOf<ProviderBlock>()
 
     private val refreshLoop = object : Runnable {
         override fun run() {
@@ -49,8 +61,8 @@ class MainActivity : ComponentActivity() {
 
         repository = DashboardRepository(applicationContext)
         displayAdapter = DisplayAdapterFactory.create()
-        binding.codexProgress.progressTintList = ColorStateList.valueOf(getColor(R.color.codex_accent))
-        binding.claudeProgress.progressTintList = ColorStateList.valueOf(getColor(R.color.claude_accent))
+        tintProgressBar(binding.codexProgress, getColor(R.color.codex_accent))
+        tintProgressBar(binding.claudeProgress, getColor(R.color.claude_accent))
         binding.dashboardRoot.post {
             if (binding.dashboardRoot.isAttachedToWindow) {
                 displayAdapter.attach(binding.dashboardRoot)
@@ -59,11 +71,7 @@ class MainActivity : ComponentActivity() {
         }
 
         binding.refreshButton.setOnClickListener { refreshSnapshot() }
-        binding.hostButton.setOnClickListener { showPairingDialog() }
-        binding.cleanButton.setOnClickListener {
-            if (adapterAttached) displayAdapter.fullRefresh("manual-ghost-cleanup")
-            binding.transportStatusText.text = "$sourceLabel · ${displayAdapter.capabilityLabel} · cleaned"
-        }
+        binding.settingsButton.setOnClickListener { showHostDialog() }
 
         val initial = repository.loadInitial()
         render(initial)
@@ -92,118 +100,43 @@ class MainActivity : ComponentActivity() {
         repository.refresh(readerState) { result -> render(result) }
     }
 
-    private fun showPairingDialog() {
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), dp(8), dp(24), 0)
-        }
-        val pairingPayloadField = EditText(this).apply {
-            hint = getString(R.string.pairing_json_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            minLines = 2
-            maxLines = 4
-        }
-        val originField = EditText(this).apply {
-            hint = getString(R.string.usage_host_address_hint)
+    private fun showHostDialog() {
+        val currentHost = repository.hostOrigin().orEmpty()
+        val hostField = EditText(this).apply {
+            hint = getString(R.string.host_hint)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            setSingleLine(true)
-            setText(repository.pairingOrigin().orEmpty())
+            maxLines = 1
+            setText(currentHost)
+            setSelectAllOnFocus(true)
         }
-        val tokenField = EditText(this).apply {
-            hint = getString(R.string.reader_token_hint)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-            setSingleLine(true)
-        }
-        val certificateField = EditText(this).apply {
-            hint = getString(R.string.certificate_sha256_hint)
-            inputType = InputType.TYPE_CLASS_TEXT
-            setSingleLine(true)
-        }
-        val hostIDField = EditText(this).apply {
-            hint = getString(R.string.host_id_hint)
-            inputType = InputType.TYPE_CLASS_TEXT
-            setSingleLine(true)
-        }
-        container.addView(pairingPayloadField)
-        container.addView(originField)
-        container.addView(tokenField)
-        container.addView(certificateField)
-        container.addView(hostIDField)
 
         val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.usage_host_title)
-            .setView(container)
-            .setPositiveButton(R.string.save_pairing, null)
+            .setView(hostField)
+            .setPositiveButton(R.string.save_host, null)
             .setNegativeButton(android.R.string.cancel, null)
-            .setNeutralButton(R.string.forget_pairing, null)
             .create()
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val pairingPayload = pairingPayloadField.text.toString()
-                val error = if (pairingPayload.isBlank()) {
-                    repository.savePairing(
-                        originField.text.toString(),
-                        tokenField.text.toString(),
-                        certificateField.text.toString(),
-                        hostIDField.text.toString(),
-                    )
+                val host = hostField.text.toString().trim()
+                val error = if (host == currentHost && currentHost.isNotEmpty()) {
+                    null
+                } else if (host.isEmpty()) {
+                    getString(R.string.host_required)
                 } else {
-                    runCatching {
-                        val pairing = UsageHostPairing.parse(pairingPayload)
-                        repository.savePairing(
-                            pairing.baseURL,
-                            pairing.token,
-                            pairing.certificateSHA256,
-                            pairing.hostID,
-                        )?.let { throw IllegalArgumentException(it) }
-                    }.exceptionOrNull()?.message
+                    repository.saveHost(host)
                 }
                 if (error == null) {
+                    readerState = null
+                    presentation = null
                     dialog.dismiss()
                     refreshSnapshot()
                 } else {
-                    tokenField.text?.clear()
-                    if (pairingPayload.isBlank()) {
-                        originField.error = error
-                    } else {
-                        pairingPayloadField.error = error
-                    }
+                    hostField.error = error
                 }
-            }
-            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
-                repository.clearPairing()
-                readerState = null
-                presentation = null
-                dialog.dismiss()
-                clearDashboard()
             }
         }
         dialog.show()
-    }
-
-    private fun clearDashboard() {
-        binding.freshnessText.text = "NO SNAPSHOT"
-        binding.transportStatusText.text = "Usage Host pairing removed"
-        bindPriorityCard(
-            null,
-            binding.codexName,
-            binding.codexPrimary,
-            binding.codexSecondary,
-            binding.codexStatus,
-            binding.codexProgress,
-            "Codex",
-        )
-        bindPriorityCard(
-            null,
-            binding.claudeName,
-            binding.claudePrimary,
-            binding.claudeSecondary,
-            binding.claudeStatus,
-            binding.claudeProgress,
-            "Claude",
-        )
-        bindGenericProviders(emptyList())
-        submitDisplayUpdate(SemanticChangeSet.full)
     }
 
     private fun render(result: DashboardRepository.Result) {
@@ -238,79 +171,151 @@ class MainActivity : ComponentActivity() {
             result.errorLabel?.let { append(" · ").append(it) }
             append(" · ").append(displayAdapter.capabilityLabel)
         }
-        bindPriorityCard(
-            next.codex,
-            binding.codexName,
-            binding.codexPrimary,
-            binding.codexSecondary,
-            binding.codexStatus,
-            binding.codexProgress,
-            "Codex",
-        )
-        bindPriorityCard(
-            next.claude,
-            binding.claudeName,
-            binding.claudePrimary,
-            binding.claudeSecondary,
-            binding.claudeStatus,
-            binding.claudeProgress,
-            "Claude",
-        )
+        binding.codexCard.visibility = if (next.codex == null) View.GONE else View.VISIBLE
+        binding.claudeCard.visibility = if (next.claude == null) View.GONE else View.VISIBLE
+        binding.priorityDivider.visibility = if (next.codex != null && next.claude != null) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+        next.codex?.let { provider ->
+            bindProvider(
+                provider,
+                binding.codexName,
+                binding.codexRemaining,
+                binding.codexPrimary,
+                binding.codexReset,
+                binding.codexSecondary,
+                binding.codexStatus,
+                binding.codexProgress,
+            )
+        }
+        next.claude?.let { provider ->
+            bindProvider(
+                provider,
+                binding.claudeName,
+                binding.claudeRemaining,
+                binding.claudePrimary,
+                binding.claudeReset,
+                binding.claudeSecondary,
+                binding.claudeStatus,
+                binding.claudeProgress,
+            )
+        }
         bindGenericProviders(next.genericProviders)
     }
 
-    private fun bindPriorityCard(
-        provider: ProviderPresentation?,
+    private fun bindProvider(
+        provider: ProviderPresentation,
         nameView: TextView,
+        remainingView: TextView,
         primaryView: TextView,
+        resetView: TextView,
         secondaryView: TextView,
         statusView: TextView,
-        progressView: android.widget.ProgressBar,
-        fallbackName: String,
+        progressView: ProgressBar,
     ) {
-        nameView.text = provider?.name ?: fallbackName
-        primaryView.text = provider?.primary ?: "Not enabled"
-        secondaryView.text = provider?.secondary.orEmpty()
-        statusView.text = provider?.status ?: "No data"
-        progressView.setProgress(provider?.usedPercent ?: 0, false)
+        nameView.text = provider.name
+        remainingView.text = provider.remaining
+        primaryView.text = provider.primary
+        resetView.text = provider.reset
+        secondaryView.text = provider.secondary
+        statusView.text = provider.status
+        progressView.setProgress(provider.usedPercent ?: 0, false)
+        progressView.visibility = if (provider.usedPercent != null) View.VISIBLE else View.GONE
+        resetView.visibility = if (provider.reset != "RESET —") View.VISIBLE else View.GONE
+        secondaryView.visibility = if (provider.secondary.isBlank()) View.GONE else View.VISIBLE
+        statusView.visibility = if (
+            provider.status.isBlank() || provider.status == provider.primary
+        ) {
+            View.GONE
+        } else {
+            View.VISIBLE
+        }
     }
 
     private fun bindGenericProviders(providers: List<ProviderPresentation>) {
         val container = binding.genericProviderContainer
-        val existingIDs = (0 until container.childCount).mapNotNull { index ->
-            container.getChildAt(index).tag as? String
-        }
-        if (existingIDs != providers.map { it.id }) {
+        binding.genericCard.visibility = if (providers.isEmpty()) View.GONE else View.VISIBLE
+        if (this.genericProviderBlocks.map { it.providerID } != providers.map { it.id }) {
             container.removeAllViews()
-            providers.take(MAX_GENERIC_ROWS).forEach { provider ->
-                container.addView(createGenericRow(provider.id))
-            }
-            if (providers.size > MAX_GENERIC_ROWS) {
-                container.addView(createGenericRow(OVERFLOW_ID))
+            this.genericProviderBlocks.clear()
+            providers.forEach { provider ->
+                val block = this.createGenericProviderBlock(provider.id)
+                this.genericProviderBlocks += block
+                container.addView(block.root)
             }
         }
 
-        providers.take(MAX_GENERIC_ROWS).forEachIndexed { index, provider ->
-            val row = container.getChildAt(index) as TextView
-            row.text = "${provider.name} — ${provider.primary} · ${provider.status}"
-            row.contentDescription = "${provider.name}. ${provider.primary}. ${provider.status}"
-        }
-        if (providers.size > MAX_GENERIC_ROWS) {
-            val overflow = container.getChildAt(container.childCount - 1) as TextView
-            overflow.text = "+ ${providers.size - MAX_GENERIC_ROWS} more providers"
-            overflow.contentDescription = overflow.text
+        providers.zip(this.genericProviderBlocks).forEach { (provider, block) ->
+            this.bindProvider(
+                provider,
+                block.name,
+                block.remaining,
+                block.primary,
+                block.reset,
+                block.secondary,
+                block.status,
+                block.progress,
+            )
+            block.root.contentDescription = buildString {
+                append(provider.name).append(". ")
+                append(provider.remaining).append(". ")
+                append(provider.primary).append(". ")
+                append(provider.status)
+            }
         }
     }
 
-    private fun createGenericRow(providerID: String): TextView = TextView(this).apply {
-        id = View.generateViewId()
-        tag = providerID
-        setTextColor(Color.rgb(21, 21, 21))
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-        gravity = Gravity.CENTER_VERTICAL
-        minHeight = dp(48)
-        maxLines = 2
-        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+    private fun createGenericProviderBlock(providerID: String): ProviderBlock {
+        val root = this.layoutInflater.inflate(
+            R.layout.provider_full_item,
+            binding.genericProviderContainer,
+            false,
+        )
+        val accentColor = providerAccentColor(providerID)
+        root.tag = providerID
+        return ProviderBlock(
+            providerID = providerID,
+            root = root,
+            name = root.findViewById(R.id.provider_name),
+            remaining = root.findViewById<TextView>(R.id.provider_remaining).apply {
+                setTextColor(accentColor)
+            },
+            primary = root.findViewById(R.id.provider_primary),
+            reset = root.findViewById(R.id.provider_reset),
+            secondary = root.findViewById(R.id.provider_secondary),
+            status = root.findViewById(R.id.provider_status),
+            progress = root.findViewById<ProgressBar>(R.id.provider_progress).apply {
+                tintProgressBar(this, accentColor)
+            },
+        )
+    }
+
+    private fun tintProgressBar(progressBar: ProgressBar, color: Int) {
+        val background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(getColor(R.color.ink_light))
+        }
+        val fill = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(color)
+        }
+        val clippedFill = ClipDrawable(fill, Gravity.START, ClipDrawable.HORIZONTAL)
+        progressBar.progressDrawable = LayerDrawable(arrayOf(background, clippedFill)).apply {
+            setId(0, android.R.id.background)
+            setId(1, android.R.id.progress)
+        }
+    }
+
+    private fun providerAccentColor(providerID: String): Int {
+        val colorResource = when (providerID.lowercase()) {
+            "cursor" -> R.color.cursor_accent
+            else -> GENERIC_ACCENT_COLORS[
+                Math.floorMod(providerID.hashCode(), GENERIC_ACCENT_COLORS.size)
+            ]
+        }
+        return getColor(colorResource)
     }
 
     private fun submitDisplayUpdate(changes: SemanticChangeSet) {
@@ -339,11 +344,8 @@ class MainActivity : ComponentActivity() {
         put(RegionKey.Provider("codex"), binding.codexCard)
         put(RegionKey.Provider("claude"), binding.claudeCard)
         put(RegionKey.ProviderList, binding.genericCard)
-        val container = binding.genericProviderContainer
-        (0 until container.childCount).forEach { index ->
-            val view = container.getChildAt(index)
-            val providerID = view.tag as? String
-            if (providerID != null && providerID != OVERFLOW_ID) put(RegionKey.Provider(providerID), view)
+        this@MainActivity.genericProviderBlocks.forEach { block ->
+            put(RegionKey.Provider(block.providerID), block.root)
         }
     }
 
@@ -366,12 +368,13 @@ class MainActivity : ComponentActivity() {
         root.requestApplyInsets()
     }
 
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
-
     private companion object {
         const val TAG = "CodexBarInk"
+        val GENERIC_ACCENT_COLORS = intArrayOf(
+            R.color.provider_accent_magenta,
+            R.color.provider_accent_cyan,
+            R.color.provider_accent_green,
+        )
         const val REFRESH_INTERVAL_MILLIS = 5 * 60 * 1_000L
-        const val MAX_GENERIC_ROWS = 2
-        const val OVERFLOW_ID = "__overflow__"
     }
 }

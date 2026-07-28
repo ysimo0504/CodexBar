@@ -51,11 +51,11 @@ android {
         }
         create("secure") {
             dimension = "transport"
-            versionNameSuffix = "-secure"
-            buildConfigField("String", "TRANSPORT_KIND", "\"secure\"")
+            versionNameSuffix = "-lan"
+            buildConfigField("String", "TRANSPORT_KIND", "\"lan\"")
             buildConfigField("String", "FIXTURE_URL", "\"\"")
             buildConfigField("String", "FIXTURE_TOKEN", "\"\"")
-            manifestPlaceholders["usesCleartextTraffic"] = "false"
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         create("generic") {
             dimension = "display"

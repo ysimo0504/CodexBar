@@ -46,3 +46,17 @@
 - Keep provider data siloed: when rendering usage or account info for a provider (Claude vs Codex), never display identity/plan fields sourced from a different provider.***
 - Claude CLI status line is custom + user-configurable; never rely on it for usage parsing.
 - Cookie imports: default Chrome-only when possible to avoid other browser prompts; override via browser list when needed.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live in GitHub Issues for `ysimo0504/CodexBar`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default Matt Pocock skill label vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use the single-context domain documentation layout. See `docs/agents/domain.md`.

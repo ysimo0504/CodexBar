@@ -15,42 +15,16 @@ struct InkUsageHostCoordinatorTests {
 
         coordinator.setEnabled(true)
         coordinator.setEnabled(true)
-        await self.waitUntil { coordinator.state == .lanReady(url: "https://192.168.31.42:43121") }
+        await self.waitUntil { coordinator.state == .lanReady(url: "http://192.168.31.42:43121") }
 
         #expect(server.startCount == 1)
         #expect(defaults.bool(forKey: "inkUsageHostEnabled"))
-        #expect(coordinator.certificateFingerprint == String(repeating: "a", count: 64))
-        #expect(coordinator.hostID == "fixture-host-id")
-        #expect(coordinator.pairingURL == "https://192.168.31.42:43121")
-        #expect(coordinator.pairingPayload?.contains("fixture-reader-token") == true)
-        #expect(!coordinator.state.summary.contains("fixture-reader-token"))
+        #expect(coordinator.hostURL == "http://192.168.31.42:43121")
 
         coordinator.setEnabled(false)
         #expect(server.stopCount == 1)
         #expect(coordinator.state == .disabled)
-        #expect(coordinator.pairingPayload == nil)
-    }
-
-    @Test
-    func `rotation stores a new token and refreshes pairing without restarting TLS`() async throws {
-        let defaults = try #require(UserDefaults(suiteName: "InkUsageHostCoordinatorTests-\(UUID().uuidString)"))
-        let tokenStore = MemoryTokenStore(token: "fixture-reader-token")
-        let server = FakeLANServer(port: 43121)
-        let coordinator = Self.coordinator(defaults: defaults, tokenStore: tokenStore, server: server)
-        coordinator.setEnabled(true)
-        await self.waitUntil { coordinator.tokenFingerprint != nil }
-        let oldToken = tokenStore.token
-        let oldPayload = coordinator.pairingPayload
-
-        coordinator.rotateToken()
-        await self.waitUntil {
-            tokenStore.token != oldToken && coordinator.pairingPayload != oldPayload
-        }
-
-        #expect(server.startCount == 1)
-        #expect(coordinator.pairingPayload != oldPayload)
-        #expect(coordinator.pairingPayload?.contains(tokenStore.token ?? "missing") == true)
-        #expect(!coordinator.state.summary.contains(tokenStore.token ?? "never"))
+        #expect(coordinator.hostURL == nil)
     }
 
     @Test
@@ -61,7 +35,7 @@ struct InkUsageHostCoordinatorTests {
         let coordinator = Self.coordinator(defaults: defaults, address: address, server: server)
         coordinator.setEnabled(true)
         await self.waitUntil {
-            coordinator.state == .lanReady(url: "https://192.168.31.42:43121")
+            coordinator.state == .lanReady(url: "http://192.168.31.42:43121")
         }
 
         coordinator.handleWillSleep()
@@ -70,13 +44,13 @@ struct InkUsageHostCoordinatorTests {
         coordinator.handleDidWake()
         await self.waitUntil {
             server.startCount == 2 &&
-                coordinator.state == .lanReady(url: "https://192.168.31.42:43121")
+                coordinator.state == .lanReady(url: "http://192.168.31.42:43121")
         }
 
         address.value = "10.0.0.8"
         coordinator.handleNetworkAvailable()
         await self.waitUntil {
-            coordinator.state == .lanReady(url: "https://10.0.0.8:43121")
+            coordinator.state == .lanReady(url: "http://10.0.0.8:43121")
         }
 
         #expect(server.startCount == 3)
@@ -105,8 +79,6 @@ struct InkUsageHostCoordinatorTests {
         let server = BlockingLANServer()
         let coordinator = InkUsageHostCoordinator(
             defaults: defaults,
-            tokenStore: MemoryTokenStore(),
-            identityStore: FakeIdentityStore(),
             addressProvider: { "192.168.31.42" },
             monitorLifecycle: false,
             snapshotProvider: { Data("{}".utf8) },
@@ -122,16 +94,33 @@ struct InkUsageHostCoordinatorTests {
         #expect(coordinator.nextRetryAt == nil)
     }
 
+    @Test
+    func `network availability does not restart an in flight listener`() async throws {
+        let defaults = try #require(UserDefaults(suiteName: "InkUsageHostCoordinatorTests-\(UUID().uuidString)"))
+        let server = BlockingLANServer()
+        let coordinator = InkUsageHostCoordinator(
+            defaults: defaults,
+            addressProvider: { "192.168.31.42" },
+            monitorLifecycle: false,
+            snapshotProvider: { Data("{}".utf8) },
+            serverFactory: { _ in server })
+        coordinator.setEnabled(true)
+        await self.waitUntil { server.didStart }
+
+        coordinator.handleNetworkAvailable()
+        await Task.yield()
+
+        #expect(server.startCount == 1)
+        coordinator.setEnabled(false)
+    }
+
     private static func coordinator(
         defaults: UserDefaults,
-        tokenStore: MemoryTokenStore = MemoryTokenStore(token: "fixture-reader-token"),
         address: MutableAddress = MutableAddress("192.168.31.42"),
         server: FakeLANServer) -> InkUsageHostCoordinator
     {
         InkUsageHostCoordinator(
             defaults: defaults,
-            tokenStore: tokenStore,
-            identityStore: FakeIdentityStore(),
             addressProvider: { address.value },
             monitorLifecycle: false,
             snapshotProvider: { Data("{}".utf8) },
@@ -143,39 +132,6 @@ struct InkUsageHostCoordinatorTests {
             if await condition() { return }
             await Task.yield()
         }
-    }
-}
-
-private final class MemoryTokenStore: ReaderTokenStoring, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedToken: String?
-
-    init(token: String? = nil) {
-        self.storedToken = token
-    }
-
-    var token: String? {
-        self.lock.withLock { self.storedToken }
-    }
-
-    func load() throws -> String? {
-        self.token
-    }
-
-    func save(_ token: String) throws {
-        self.lock.withLock { self.storedToken = token }
-    }
-
-    func delete() throws {
-        self.lock.withLock { self.storedToken = nil }
-    }
-}
-
-private struct FakeIdentityStore: InkTLSIdentityStoring {
-    func loadOrCreate() throws -> InkTLSIdentityMaterial {
-        InkTLSIdentityMaterial(
-            testCertificateSHA256: String(repeating: "a", count: 64),
-            hostID: "fixture-host-id")
     }
 }
 
@@ -193,7 +149,7 @@ private final class MutableAddress: @unchecked Sendable {
     }
 }
 
-private final class FakeLANServer: InkLANHTTPSServing, @unchecked Sendable {
+private final class FakeLANServer: InkLANHTTPServing, @unchecked Sendable {
     let port: UInt16
     private(set) var startCount = 0
     private(set) var stopCount = 0
@@ -202,7 +158,7 @@ private final class FakeLANServer: InkLANHTTPSServing, @unchecked Sendable {
         self.port = port
     }
 
-    func start(identity: InkTLSIdentityMaterial, address: String) async throws -> InkLANEndpoint {
+    func start(address: String) async throws -> InkLANEndpoint {
         self.startCount += 1
         return InkLANEndpoint(address: address, port: self.port)
     }
@@ -212,16 +168,24 @@ private final class FakeLANServer: InkLANHTTPSServing, @unchecked Sendable {
     }
 }
 
-private final class BlockingLANServer: InkLANHTTPSServing, @unchecked Sendable {
+private final class BlockingLANServer: InkLANHTTPServing, @unchecked Sendable {
     private let lock = NSLock()
     private var started = false
+    private var starts = 0
 
     var didStart: Bool {
         self.lock.withLock { self.started }
     }
 
-    func start(identity: InkTLSIdentityMaterial, address: String) async throws -> InkLANEndpoint {
-        self.lock.withLock { self.started = true }
+    var startCount: Int {
+        self.lock.withLock { self.starts }
+    }
+
+    func start(address: String) async throws -> InkLANEndpoint {
+        self.lock.withLock {
+            self.started = true
+            self.starts += 1
+        }
         try await Task.sleep(for: .seconds(60))
         return InkLANEndpoint(address: address, port: 43121)
     }

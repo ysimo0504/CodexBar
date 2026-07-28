@@ -4,6 +4,8 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -22,6 +24,7 @@ data class ProviderState(
     val windows: List<WindowState>,
     val credits: CreditState?,
     val todayCostUSD: Double?,
+    val last30DaysCostUSD: Double?,
     val plan: String?,
     val statusLabel: String?,
     val errorMessage: String?,
@@ -53,7 +56,9 @@ data class DashboardPresentation(
 data class ProviderPresentation(
     val id: String,
     val name: String,
+    val remaining: String,
     val primary: String,
+    val reset: String,
     val secondary: String,
     val status: String,
     val usedPercent: Int?,
@@ -131,31 +136,44 @@ object ReaderReducer {
         val display = provider.objectOrNull("display")
         val identity = provider.objectOrNull("identity")
         val status = provider.objectOrNull("status")
-        val hasUsableValues = windows.isNotEmpty() || credits != null || cost?.double("todayUSD") != null
+        val hasUsableValues = windows.isNotEmpty() ||
+            credits != null ||
+            cost?.double("todayUSD") != null ||
+            cost?.double("last30DaysUSD") != null
+        val canReusePreviousValues = error == null && !hasUsableValues
 
         return ProviderState(
             id = id,
             name = provider.string("name")?.takeIf { it.isNotBlank() } ?: previous?.name ?: id,
             sortKey = display?.int("sortKey") ?: previous?.sortKey ?: Int.MAX_VALUE,
-            windows = if (hasUsableValues || previous == null) windows else previous.windows,
-            credits = credits ?: if (hasUsableValues) null else previous?.credits,
-            todayCostUSD = cost?.double("todayUSD") ?: if (hasUsableValues) null else previous?.todayCostUSD,
-            plan = identity?.string("plan") ?: previous?.plan,
-            statusLabel = status?.string("label") ?: previous?.statusLabel,
+            windows = if (canReusePreviousValues) previous?.windows.orEmpty() else windows,
+            credits = credits ?: if (canReusePreviousValues) previous?.credits else null,
+            todayCostUSD = cost?.double("todayUSD")
+                ?: if (canReusePreviousValues) previous?.todayCostUSD else null,
+            last30DaysCostUSD = cost?.double("last30DaysUSD")
+                ?: if (canReusePreviousValues) previous?.last30DaysCostUSD else null,
+            plan = if (error == null) identity?.string("plan") ?: previous?.plan else null,
+            statusLabel = if (error == null) status?.string("label") ?: previous?.statusLabel else null,
             errorMessage = error?.string("message"),
             errorReason = error?.string("reason"),
-            updatedAt = provider.string("updatedAt") ?: previous?.updatedAt,
+            updatedAt = provider.string("updatedAt") ?: if (error == null) previous?.updatedAt else null,
         )
     }
 }
 
 object DashboardPresenter {
-    fun present(state: ReaderState, nowEpochMillis: Long): DashboardPresentation {
+    fun present(
+        state: ReaderState,
+        nowEpochMillis: Long,
+        zoneId: ZoneId = ZoneId.systemDefault(),
+    ): DashboardPresentation {
         val generatedAtMillis = runCatching { Instant.parse(state.generatedAt).toEpochMilli() }
             .getOrDefault(state.receivedAtEpochMillis)
         val staleAt = generatedAtMillis + state.staleAfterSeconds * 1_000
         val freshness = if (nowEpochMillis > staleAt) "STALE · showing last good" else "FRESH · snapshot"
-        val cards = state.providers.map(::presentProvider)
+        val cards = state.providers
+            .filter { it.errorMessage == null }
+            .map { presentProvider(it, zoneId) }
 
         return DashboardPresentation(
             freshness = freshness,
@@ -184,35 +202,59 @@ object DashboardPresenter {
         return SemanticChangeSet(changes)
     }
 
-    private fun presentProvider(provider: ProviderState): ProviderPresentation {
+    private fun presentProvider(provider: ProviderState, zoneId: ZoneId): ProviderPresentation {
         val primaryWindow = provider.windows.firstOrNull()
-        val primary = when {
-            primaryWindow?.usedPercent != null ->
-                "${primaryWindow.label}: ${formatPercent(primaryWindow.usedPercent)} used"
+        val primaryUsedPercent = primaryWindow?.usedPercent
+            ?: primaryWindow?.remainingPercent?.let { 100.0 - it }
+        val primaryRemainingPercent = primaryWindow?.remainingPercent
+            ?: primaryUsedPercent?.let { 100.0 - it }
+        val remaining = when {
+            primaryRemainingPercent != null -> "${formatPercent(primaryRemainingPercent)} LEFT"
             provider.credits != null ->
-                "${formatNumber(provider.credits.remaining)} ${provider.credits.unit} left"
-            provider.todayCostUSD != null -> "Today: $${String.format(Locale.US, "%.2f", provider.todayCostUSD)}"
+                "${formatNumber(provider.credits.remaining)} ${provider.credits.unit.uppercase(Locale.ROOT)} LEFT"
+            provider.todayCostUSD != null -> "$${formatCurrency(provider.todayCostUSD)} TODAY"
+            provider.last30DaysCostUSD != null -> "$${formatCurrency(provider.last30DaysCostUSD)} / 30D"
+            else -> "NO QUOTA"
+        }
+        val primary = when {
+            primaryWindow != null ->
+                "${primaryWindow.label.uppercase(Locale.ROOT)} · " +
+                    "${primaryUsedPercent?.let(::formatPercent) ?: "—"} USED"
+            provider.credits != null -> "CREDITS"
+            provider.todayCostUSD != null -> "TODAY'S COST"
+            provider.last30DaysCostUSD != null -> "LAST 30 DAYS"
             else -> "No quota data"
         }
-        val secondary = provider.windows.drop(1).take(2).joinToString(" · ") { window ->
-            val usage = window.usedPercent?.let(::formatPercent) ?: "—"
-            "${window.label} $usage"
-        }.ifBlank {
-            provider.plan?.let { "Plan: $it" } ?: provider.statusLabel.orEmpty()
+        val secondary = buildList {
+            provider.windows.drop(1).forEach { window ->
+                val windowRemaining = window.remainingPercent
+                    ?: window.usedPercent?.let { 100.0 - it }
+                add("${window.label} ${windowRemaining?.let(::formatPercent) ?: "—"} left")
+            }
+            provider.credits?.let { add("${formatNumber(it.remaining)} ${it.unit}") }
+            provider.todayCostUSD?.let { add("$${formatCurrency(it)} today") }
+            provider.last30DaysCostUSD?.let { add("$${formatCurrency(it)} / 30d") }
+        }.joinToString(" · ").ifBlank {
+            "No additional windows"
         }
-        val status = when {
-            provider.errorMessage != null -> "Last good · ${provider.errorMessage}"
-            provider.statusLabel != null -> provider.statusLabel
-            else -> "Available"
-        }
+        val statusBase = provider.statusLabel ?: "Available"
+        val status = listOfNotNull(statusBase, provider.plan).joinToString(" · ")
         return ProviderPresentation(
             id = provider.id,
             name = provider.name,
+            remaining = remaining,
             primary = primary,
+            reset = formatReset(primaryWindow?.resetAt, zoneId),
             secondary = secondary,
             status = status,
-            usedPercent = primaryWindow?.usedPercent?.roundToInt()?.coerceIn(0, 100),
+            usedPercent = primaryUsedPercent?.roundToInt()?.coerceIn(0, 100),
         )
+    }
+
+    private fun formatReset(raw: String?, zoneId: ZoneId): String {
+        val instant = raw?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return "RESET —"
+        val formatter = DateTimeFormatter.ofPattern("MMM d · HH:mm", Locale.US)
+        return "RESETS ${formatter.format(instant.atZone(zoneId)).uppercase(Locale.ROOT)}"
     }
 
     private fun formatPercent(value: Double): String = if (value % 1.0 == 0.0) {
@@ -226,6 +268,8 @@ object DashboardPresenter {
     } else {
         String.format(Locale.US, "%.1f", value)
     }
+
+    private fun formatCurrency(value: Double): String = String.format(Locale.US, "%.2f", value)
 }
 
 private fun JsonObject.string(name: String): String? = this.get(name)?.takeUnless { it.isJsonNull }?.asString

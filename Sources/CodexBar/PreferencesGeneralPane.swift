@@ -79,7 +79,6 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 struct GeneralPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var inkUsageHostCoordinator: InkUsageHostCoordinator
-    @State private var isConfirmingTokenRotation = false
 
     init(settings: SettingsStore, inkUsageHostCoordinator: InkUsageHostCoordinator? = nil) {
         self.settings = settings
@@ -149,90 +148,18 @@ struct GeneralPane: View {
                     get: { self.inkUsageHostCoordinator.isEnabled },
                     set: { self.inkUsageHostCoordinator.setEnabled($0) }))
                 {
-                    SettingsRowLabel(
-                        "BOOX Usage Host",
-                        subtitle: "Share the cached Dashboard Snapshot over self-hosted private-LAN HTTPS.")
+                    Text("BOOX Usage Host")
                 }
 
-                LabeledContent("Status") {
-                    Text(verbatim: self.inkUsageHostCoordinator.state.summary)
-                        .foregroundStyle(self.inkUsageHostCoordinator.state == .disabled ? .secondary : .primary)
-                }
-
-                if let fingerprint = self.inkUsageHostCoordinator.tokenFingerprint {
-                    LabeledContent("Reader token") {
-                        HStack {
-                            Text(verbatim: "Fingerprint \(fingerprint)")
-                                .foregroundStyle(.secondary)
-                            Button("Copy") { self.inkUsageHostCoordinator.copyReaderToken() }
-                            Button("Rotate", role: .destructive) {
-                                self.isConfirmingTokenRotation = true
-                            }
-                        }
+                LabeledContent("Host") {
+                    if let hostURL = self.inkUsageHostCoordinator.hostURL {
+                        Text(verbatim: hostURL)
+                            .textSelection(.enabled)
+                    } else {
+                        Text(verbatim: "—")
+                            .foregroundStyle(.secondary)
                     }
                 }
-
-                if let pairingURL = self.inkUsageHostCoordinator.pairingURL {
-                    LabeledContent("Reader address") {
-                        HStack {
-                            Text(verbatim: pairingURL)
-                                .textSelection(.enabled)
-                            Button("Copy") { self.inkUsageHostCoordinator.copyPairingURL() }
-                        }
-                    }
-                }
-
-                if let fingerprint = self.inkUsageHostCoordinator.certificateFingerprint {
-                    LabeledContent("TLS certificate") {
-                        HStack {
-                            Text(verbatim: fingerprint)
-                                .font(.system(.caption, design: .monospaced))
-                                .lineLimit(1)
-                                .textSelection(.enabled)
-                            Button("Copy") { self.inkUsageHostCoordinator.copyCertificateFingerprint() }
-                        }
-                    }
-                }
-
-                if let hostID = self.inkUsageHostCoordinator.hostID {
-                    LabeledContent("Host ID") {
-                        HStack {
-                            Text(verbatim: hostID)
-                                .font(.system(.caption, design: .monospaced))
-                                .lineLimit(1)
-                                .textSelection(.enabled)
-                            Button("Copy") { self.inkUsageHostCoordinator.copyHostID() }
-                        }
-                    }
-                }
-
-                if self.inkUsageHostCoordinator.pairingPayload != nil {
-                    HStack {
-                        Spacer()
-                        Button("Copy pairing JSON") {
-                            self.inkUsageHostCoordinator.copyPairingPayload()
-                        }
-                    }
-                }
-
-                if self.inkUsageHostCoordinator.isEnabled {
-                    if let nextRetryAt = self.inkUsageHostCoordinator.nextRetryAt {
-                        LabeledContent("Next retry") {
-                            Text(nextRetryAt, style: .relative)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    HStack {
-                        Spacer()
-                        Button("Retry") { self.inkUsageHostCoordinator.retryNow() }
-                    }
-                }
-            } header: {
-                Text("E-ink reader")
-            } footer: {
-                SettingsSectionFooter(
-                    "Works on the current private LAN without a cloud account. The reader pins this Mac's certificate; "
-                        + "no LAN HTTP or public listener is exposed.")
             }
 
             Section {
@@ -251,20 +178,8 @@ struct GeneralPane: View {
             }
         }
         .formStyle(.grouped)
-        .confirmationDialog(
-            "Rotate reader token?",
-            isPresented: self.$isConfirmingTokenRotation,
-            titleVisibility: .visible)
-        {
-            Button("Rotate token", role: .destructive) {
-                self.inkUsageHostCoordinator.rotateToken()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("The BOOX reader must be paired again with the new token.")
-        }
         .toggleStyle(.switch)
-            .scrollContentBackground(.hidden)
-            .background(FocusResigningBackground())
+        .scrollContentBackground(.hidden)
+        .background(FocusResigningBackground())
     }
 }

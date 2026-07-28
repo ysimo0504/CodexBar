@@ -1,20 +1,20 @@
 # CodexBar Ink Android reader
 
-This isolated Android project contains the production private-LAN HTTPS reader plus fixture-only development
+This isolated Android project contains the production private-LAN HTTP reader plus fixture-only development
 variants. Provider credentials remain on the Mac.
 
-Real-device results and remaining secure-transport gates are recorded in
+Real-device results and remaining transport notes are recorded in
 [`docs/research/boox-snapshot-rendering-loop.md`](../../docs/research/boox-snapshot-rendering-loop.md).
 
 ## Variants
 
 - `fixtureGenericDebug`: bundled redacted snapshot and standard Android invalidation; no Onyx AAR.
 - `fixtureBooxDebug`: the same reader plus failure-open Onyx `REGAL`/`GU` partial refresh and `GC` cleanup.
-- `secureBooxDebug`: BOOX reader paired to CodexBar's self-hosted private-LAN HTTPS Usage Host.
-- `secureGenericDebug`: the same secure transport without Onyx display APIs.
+- `secureBooxDebug`: BOOX reader connected directly to CodexBar's private-LAN HTTP Usage Host.
+- `secureGenericDebug`: the same LAN transport without Onyx display APIs.
 - `offline*`: bundled redacted snapshot with no cleartext transport.
 
-The secure debug application ID is `com.ysimo.codexbar.ink.debug`.
+The LAN debug application ID is `com.ysimo.codexbar.ink.debug`.
 
 ## Build and test
 
@@ -26,11 +26,10 @@ JAVA_HOME=/path/to/jdk17 ANDROID_HOME=/path/to/android-sdk \
 
 The canonical fixture is consumed directly from `docs/fixtures`; it is not copied into a second source of truth.
 
-## Production pairing
+## Local Host
 
-Enable **BOOX Usage Host** in CodexBar's General settings. On BOOX, tap **HOST**, paste the pairing JSON copied from
-the Mac, save, and refresh. The pairing contains a private-LAN HTTPS address, reader token, stable Host ID, and exact
-TLS certificate SHA-256 pin. No hosted service, account, public DNS name, or router port is required.
+Enable **BOOX Usage Host** in CodexBar's General settings and copy **Host**. On BOOX, open **Host**, paste, save, and
+refresh. It uses direct private-LAN HTTP with no account, token, certificate, or third-party service.
 
 ## Fixture-only host
 

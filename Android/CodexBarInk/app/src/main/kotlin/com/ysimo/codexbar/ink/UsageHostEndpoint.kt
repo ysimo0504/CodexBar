@@ -7,45 +7,35 @@ import java.util.Locale
 class UsageHostEndpoint private constructor(
     val origin: String,
     val snapshotUrl: URL,
-    val usesPrivateLAN: Boolean,
 ) {
     companion object {
         fun parse(rawValue: String): UsageHostEndpoint {
             val value = rawValue.trim()
             val uri = runCatching { URI(value) }
-                .getOrElse { throw IllegalArgumentException("Enter a valid HTTPS Usage Host address") }
-            require(uri.scheme?.lowercase(Locale.US) == "https") {
-                "HTTPS is required"
+                .getOrElse { throw IllegalArgumentException("Enter a valid Host address") }
+            require(uri.scheme?.lowercase(Locale.US) == "http") {
+                "Use an HTTP Host address"
             }
             require(uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null) {
                 "Credentials, queries, and fragments are not allowed"
             }
             val host = uri.host?.lowercase(Locale.US)
-                ?: throw IllegalArgumentException("Enter a valid HTTPS Usage Host address")
-            val isTailnet = host.endsWith(".ts.net") && host.length > ".ts.net".length
-            val isPrivateLAN = isPrivateIPv4(host)
-            require(isTailnet || isPrivateLAN) {
-                "Use a private-LAN address or optional .ts.net address"
+                ?: throw IllegalArgumentException("Enter a valid Host address")
+            require(isPrivateIPv4(host)) {
+                "Use a private-LAN address"
             }
-            if (isTailnet) {
-                require(uri.port == -1 || uri.port == 443) {
-                    "Tailnet HTTPS must use the standard port"
-                }
-            } else {
-                require(uri.port in 1024..65535) {
-                    "Private-LAN HTTPS requires its paired port"
-                }
+            require(uri.port in 1024..65535) {
+                "Enter the Host port"
             }
             require(uri.rawPath.isNullOrEmpty() || uri.rawPath == "/") {
                 "Enter the host address without a path"
             }
 
-            val authority = if (uri.port == -1) host else "$host:${uri.port}"
-            val origin = "https://$authority"
+            val authority = "$host:${uri.port}"
+            val origin = "http://$authority"
             return UsageHostEndpoint(
                 origin = origin,
                 snapshotUrl = URL("$origin/dashboard/v1/snapshot"),
-                usesPrivateLAN = isPrivateLAN,
             )
         }
 

@@ -1,5 +1,6 @@
 package com.ysimo.codexbar.ink.core
 
+import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -12,13 +13,16 @@ class ReaderCoreTest {
     @Test
     fun `canonical fixture produces priority and generic cards`() {
         val state = ReaderReducer.decodeAndMerge(fixture, previous = null, receivedAtEpochMillis = 1)
-        val presentation = DashboardPresenter.present(state, nowEpochMillis = 1)
+        val presentation = DashboardPresenter.present(state, nowEpochMillis = 1, zoneId = ZoneId.of("UTC"))
 
         assertEquals("FRESH · snapshot", presentation.freshness)
         assertEquals("Codex", presentation.codex?.name)
-        assertEquals("Claude", presentation.claude?.name)
+        assertEquals("72% LEFT", presentation.codex?.remaining)
+        assertEquals("SESSION · 28% USED", presentation.codex?.primary)
+        assertEquals("RESETS JUL 23 · 04:00", presentation.codex?.reset)
+        assertTrue(presentation.codex?.secondary?.contains("$18.22 / 30d") == true)
+        assertEquals(null, presentation.claude)
         assertEquals(listOf("future-provider"), presentation.genericProviders.map { it.id })
-        assertTrue(presentation.claude?.status?.contains("Temporarily unavailable") == true)
     }
 
     @Test
@@ -33,7 +37,7 @@ class ReaderCoreTest {
     }
 
     @Test
-    fun `provider error retains previous usable values`() {
+    fun `provider error clears previous usage and is omitted from presentation`() {
         val previous = ReaderReducer.decodeAndMerge(fixture, previous = null, receivedAtEpochMillis = 1)
         val failed = """
             {
@@ -53,15 +57,22 @@ class ReaderCoreTest {
         """.trimIndent()
 
         val next = ReaderReducer.decodeAndMerge(failed, previous, receivedAtEpochMillis = 2)
+        val provider = next.providers.single()
+        val presentation = DashboardPresenter.present(next, nowEpochMillis = 2, zoneId = ZoneId.of("UTC"))
 
-        assertEquals(previous.providers.first { it.id == "codex" }.windows, next.providers.single().windows)
-        assertEquals("Temporarily unavailable", next.providers.single().errorMessage)
+        assertTrue(provider.windows.isEmpty())
+        assertEquals(null, provider.credits)
+        assertEquals(null, provider.todayCostUSD)
+        assertEquals(null, provider.last30DaysCostUSD)
+        assertEquals(null, provider.plan)
+        assertEquals("Temporarily unavailable", provider.errorMessage)
+        assertEquals(null, presentation.codex)
     }
 
     @Test
     fun `same presentation emits no semantic changes`() {
         val state = ReaderReducer.decodeAndMerge(fixture, previous = null, receivedAtEpochMillis = 1)
-        val presentation = DashboardPresenter.present(state, nowEpochMillis = 1)
+        val presentation = DashboardPresenter.present(state, nowEpochMillis = 1, zoneId = ZoneId.of("UTC"))
 
         assertTrue(DashboardPresenter.diff(presentation, presentation).isEmpty)
         assertIs<RegionKey.Root>(DashboardPresenter.diff(null, presentation).regions.single())

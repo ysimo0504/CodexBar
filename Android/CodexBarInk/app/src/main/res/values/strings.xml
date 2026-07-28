@@ -1,16 +1,14 @@
 <resources>
     <string name="app_name">CodexBar Ink</string>
     <string name="dashboard_title">CODEXBAR INK</string>
-    <string name="refresh_now">REFRESH NOW</string>
-    <string name="configure_host">HOST</string>
-    <string name="clean_ghosting">CLEAN GHOSTING</string>
+    <string name="refresh_now">Refresh now</string>
+    <string name="open_settings">Open settings</string>
     <string name="waiting_for_fixture">Waiting for snapshot…</string>
-    <string name="usage_host_title">Usage Host pairing</string>
-    <string name="pairing_json_hint">Paste pairing JSON, or enter fields below</string>
-    <string name="usage_host_address_hint">https://192.168.x.x:43121</string>
-    <string name="reader_token_hint">Reader token</string>
-    <string name="certificate_sha256_hint">TLS certificate SHA-256</string>
-    <string name="host_id_hint">Host ID</string>
-    <string name="save_pairing">SAVE</string>
-    <string name="forget_pairing">FORGET</string>
+    <string name="usage_host_title">Host</string>
+    <string name="host_hint">http://192.168.x.x:43121</string>
+    <string name="host_required">Enter the Host shown by CodexBar</string>
+    <string name="save_host">SAVE</string>
+    <string name="codex_provider">Codex</string>
+    <string name="claude_provider">Claude</string>
+    <string name="other_providers">OTHER PROVIDERS</string>
 </resources>

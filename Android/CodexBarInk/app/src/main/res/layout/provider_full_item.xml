@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:importantForAccessibility="yes"
+    android:orientation="vertical"
+    android:screenReaderFocusable="true">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/ink_light" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:orientation="vertical"
+        android:paddingBottom="26dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="bottom"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/provider_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="7dp"
+                android:layout_weight="1"
+                android:accessibilityHeading="true"
+                android:fontFamily="sans-serif"
+                android:letterSpacing="0.08"
+                android:textAllCaps="true"
+                android:textColor="@color/ink_black"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                tools:text="CURSOR" />
+
+            <TextView
+                android:id="@+id/provider_remaining"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-condensed"
+                android:gravity="end"
+                android:maxLines="1"
+                android:textColor="@color/ink_black"
+                android:textSize="48sp"
+                android:textStyle="bold"
+                tools:text="98% LEFT" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/provider_primary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:textColor="@color/ink_black"
+                android:textSize="12sp"
+                tools:text="TOTAL · 2% USED" />
+
+            <TextView
+                android:id="@+id/provider_reset"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:gravity="end"
+                android:maxLines="1"
+                android:textColor="@color/ink_mid"
+                android:textSize="12sp"
+                tools:text="AUG 1 · 16:29" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/provider_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="12dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/progress_track_ink" />
+
+        <TextView
+            android:id="@+id/provider_secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:maxLines="2"
+            android:textColor="@color/ink_dark"
+            android:textSize="14sp"
+            tools:text="Auto 100% left · API 85% left" />
+
+        <TextView
+            android:id="@+id/provider_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:maxLines="1"
+            android:textColor="@color/ink_black"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="正常运行 · Cursor Pro" />
+    </LinearLayout>
+</LinearLayout>
