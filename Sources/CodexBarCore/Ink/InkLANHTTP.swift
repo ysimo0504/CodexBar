@@ -133,7 +133,6 @@ public final class InkLANHTTPServer: InkLANHTTPServing, @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.ysimo.codexbar.ink.lan-http")
     private let lock = NSLock()
     private var listener: NWListener?
-    private var allowedAddress: String?
     private var connectionCount = 0
     private let maximumConnections = 16
 
@@ -153,11 +152,10 @@ public final class InkLANHTTPServer: InkLANHTTPServing, @unchecked Sendable {
         }
 
         let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.any), port: listenerPort)
+        parameters.requiredLocalEndpoint = .hostPort(host: NWEndpoint.Host(address), port: listenerPort)
         let listener = try NWListener(using: parameters)
         self.lock.withLock {
             self.listener = listener
-            self.allowedAddress = address
         }
         listener.newConnectionHandler = { [weak self] connection in
             self?.accept(connection)
@@ -184,10 +182,7 @@ public final class InkLANHTTPServer: InkLANHTTPServing, @unchecked Sendable {
 
     public func stop() {
         let listener = self.lock.withLock { () -> NWListener? in
-            defer {
-                self.listener = nil
-                self.allowedAddress = nil
-            }
+            defer { self.listener = nil }
             return self.listener
         }
         listener?.cancel()
@@ -208,10 +203,6 @@ public final class InkLANHTTPServer: InkLANHTTPServing, @unchecked Sendable {
             switch state {
             case .ready:
                 guard let connection else { return }
-                guard self.isAllowedLocalEndpoint(connection.currentPath?.localEndpoint) else {
-                    connection.cancel()
-                    return
-                }
                 let context = ConnectionContext()
                 self.receive(on: connection, context: context)
                 self.queue.asyncAfter(deadline: .now() + 5) { [weak connection] in
@@ -260,12 +251,6 @@ public final class InkLANHTTPServer: InkLANHTTPServing, @unchecked Sendable {
         connection.send(content: data, completion: .contentProcessed { _ in
             connection.cancel()
         })
-    }
-
-    private func isAllowedLocalEndpoint(_ endpoint: NWEndpoint?) -> Bool {
-        guard case let .hostPort(host, _) = endpoint else { return false }
-        let expected = self.lock.withLock { self.allowedAddress }
-        return expected == String(describing: host)
     }
 
     private static func errorResponse(status: Int, reason: String) -> Data {

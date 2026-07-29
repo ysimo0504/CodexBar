@@ -1,0 +1,1383 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>惜墨专注仪表盘</title>
+  <style>
+:root {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-warm: var(--surface);
+
+  --fg: #111827;
+  --fg-2: var(--fg);
+  --muted: #64748b;
+  --meta: var(--muted);
+
+  --border: #e5e7eb;
+  --border-soft: var(--border);
+
+  --accent: #000000;
+  --accent-on: #ffffff;
+  --accent-hover: color-mix(in oklab, var(--accent), white 10%);
+  --accent-active: color-mix(in oklab, var(--accent), white 18%);
+
+  --success: #16a34a;
+  --warn: #d97706;
+  --danger: #dc2626;
+
+  --font-display: "Geist", "Geist Sans", -apple-system, system-ui, "Segoe UI", Arial, sans-serif;
+  --font-body: "Geist", "Geist Sans", -apple-system, system-ui, "Segoe UI", Arial, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 40px;
+  --text-4xl: 48px;
+
+  --leading-body: 1.5;
+  --leading-tight: 1.2;
+  --tracking-display: -0.02em;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --section-y-desktop: 96px;
+  --section-y-tablet: 64px;
+  --section-y-phone: 48px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 9999px;
+
+  --elev-flat: none;
+  --elev-ring: 0 0 0 1px var(--border);
+  --elev-raised:
+    0 1px 2px 0 color-mix(in oklab, var(--fg), transparent 92%),
+    0 1px 3px 0 color-mix(in oklab, var(--fg), transparent 88%);
+
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --container-max: 1280px;
+  --container-gutter-desktop: 24px;
+  --container-gutter-tablet: 16px;
+  --container-gutter-phone: 16px;
+}
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--surface);
+      color-scheme: light;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      min-width: 320px;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      background: var(--surface);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--leading-body);
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button {
+      color: inherit;
+      font: inherit;
+    }
+
+    button,
+    [role="button"] {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    svg {
+      display: block;
+      width: 1em;
+      height: 1em;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .app-shell {
+      width: 100%;
+      height: 100dvh;
+      min-height: 680px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: 0.7fr 2.6fr 0.7fr;
+      grid-template-areas:
+        "masthead"
+        "usage"
+        "focus";
+      background: var(--surface);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .masthead {
+      grid-area: masthead;
+      min-height: 0;
+      padding: var(--space-4) var(--space-8);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-8);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .time-block {
+      min-width: 0;
+    }
+
+    .clock {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: clamp(38px, 4vw, 52px);
+      font-weight: 600;
+      line-height: 0.92;
+      letter-spacing: var(--tracking-display);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .date {
+      margin: var(--space-2) 0 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .weather {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-6);
+    }
+
+    .weather-main {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      white-space: nowrap;
+    }
+
+    .weather-main svg {
+      width: 30px;
+      height: 30px;
+      stroke-width: 1.5;
+    }
+
+    .temperature {
+      font-family: var(--font-mono);
+      font-size: var(--text-xl);
+      font-weight: 600;
+      letter-spacing: var(--tracking-display);
+    }
+
+    .weather-meta {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: var(--space-2) var(--space-4);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .meta-item {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      white-space: nowrap;
+    }
+
+    .meta-item svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 1.7;
+    }
+
+    .dashboard {
+      display: contents;
+    }
+
+    .usage-panel {
+      grid-area: usage;
+      min-width: 0;
+      min-height: 0;
+      padding: var(--space-5) var(--space-8);
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .usage-list:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    .usage-list {
+      width: 100%;
+      min-width: 0;
+      min-height: 0;
+      flex: 1;
+      display: flex;
+      gap: var(--space-5);
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      border-radius: 0;
+    }
+
+    .usage-list::-webkit-scrollbar {
+      display: none;
+    }
+
+    .usage-card {
+      width: auto;
+      min-width: 0;
+      min-height: 100%;
+      flex: 0 0 100%;
+      padding: var(--space-4) 0 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: var(--space-4);
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      text-align: left;
+      background: var(--surface);
+      border: 0;
+      border-top: 1px solid var(--fg);
+      border-radius: 0;
+    }
+
+    .usage-card:hover {
+      border-top-color: var(--fg);
+    }
+
+    .usage-card[aria-current="true"] {
+      border-top-color: var(--fg);
+    }
+
+    .control-button:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    .usage-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-4);
+    }
+
+    .provider-title {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 600;
+      line-height: var(--leading-tight);
+      letter-spacing: var(--tracking-display);
+    }
+
+    .provider-subline,
+    .provider-update {
+      margin: var(--space-1) 0 0;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .provider-subline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-1) var(--space-3);
+      color: var(--fg);
+    }
+
+    .provider-update {
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .provider-content {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.88fr) minmax(0, 1.62fr);
+      gap: var(--space-4);
+      min-height: 0;
+    }
+
+    .quota-stack {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+      align-content: stretch;
+      gap: var(--space-3);
+      min-height: 0;
+    }
+
+    .quota-item {
+      min-width: 0;
+      padding: var(--space-3) 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-top: 1px solid var(--border);
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: 0;
+    }
+
+    .quota-item:first-child {
+      border-top-color: var(--fg);
+    }
+
+    .quota-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-2);
+    }
+
+    .quota-label,
+    .quota-reset,
+    .quota-remaining {
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .quota-label {
+      font-weight: 600;
+    }
+
+    .quota-reset {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .quota-remaining {
+      margin-top: var(--space-2);
+      display: block;
+      color: var(--fg);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .meter {
+      display: block;
+      width: 100%;
+      height: 7px;
+      margin-top: var(--space-2);
+      overflow: hidden;
+      position: relative;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          var(--border) 0 13px,
+          transparent 13px 17px
+        );
+    }
+
+    .meter-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: var(--usage);
+      background:
+        repeating-linear-gradient(
+          90deg,
+          var(--fg) 0 13px,
+          transparent 13px 17px
+        );
+    }
+
+    .insights-column {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(112px, 1fr) auto;
+      gap: var(--space-3);
+    }
+
+    .daily-usage {
+      min-width: 0;
+      min-height: 112px;
+      padding: var(--space-3) 0 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      background: transparent;
+      border-top: 1px solid var(--fg);
+      border-radius: 0;
+    }
+
+    .daily-usage-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-3);
+      font-family: var(--font-mono);
+    }
+
+    .daily-usage-title {
+      margin: 0;
+      font-size: var(--text-xs);
+      font-weight: 600;
+    }
+
+    .daily-usage-total {
+      color: var(--muted);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .daily-bars {
+      min-height: 0;
+      height: 100%;
+      margin-top: var(--space-2);
+      padding-top: var(--space-2);
+      display: flex;
+      align-items: end;
+      gap: clamp(2px, 0.45vw, 6px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .daily-bar {
+      height: var(--bar);
+      min-width: 3px;
+      flex: 1 1 0;
+      background: color-mix(in oklab, var(--fg), transparent 38%);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .daily-usage.is-empty {
+      display: flex;
+      justify-content: center;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .daily-usage.is-empty .daily-usage-head {
+      justify-content: center;
+    }
+
+    .card-details {
+      align-self: end;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-4);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+
+    .metric {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      padding: var(--space-3) 0 0;
+      background: transparent;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      color: var(--fg);
+      font-weight: 500;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-value.muted-value {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .provider-dots {
+      min-height: 20px;
+      padding-top: var(--space-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+    }
+
+    .provider-dot {
+      width: 8px;
+      height: 8px;
+      padding: 0;
+      background: var(--border);
+      border: 0;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition:
+        width var(--motion-fast) var(--ease-standard),
+        background var(--motion-fast) var(--ease-standard);
+    }
+
+    .provider-dot[aria-current="true"] {
+      width: 22px;
+      background: var(--accent);
+    }
+
+    .provider-dot:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-ring);
+    }
+
+    .focus-panel {
+      grid-area: focus;
+      min-height: 0;
+      padding: var(--space-4) var(--space-8);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-8);
+      text-align: left;
+    }
+
+    .focus-summary {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+    }
+
+    .focus-readout {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-3);
+    }
+
+    .focus-label {
+      margin: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.02em;
+    }
+
+    .focus-time {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: clamp(50px, 5vw, 66px);
+      font-weight: 600;
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .focus-unit {
+      margin: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: var(--text-sm);
+    }
+
+    .controls {
+      margin-top: 0;
+      display: flex;
+      justify-content: center;
+      gap: var(--space-3);
+    }
+
+    .control-button {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      background: var(--surface);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition:
+        background var(--motion-fast) var(--ease-standard),
+        color var(--motion-fast) var(--ease-standard),
+        transform var(--motion-fast) var(--ease-standard);
+    }
+
+    .control-button svg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 1.6;
+    }
+
+    .control-button:hover {
+      background: color-mix(in oklab, var(--fg), transparent 95%);
+    }
+
+    .control-button:active {
+      transform: scale(0.96);
+    }
+
+    .control-button.primary {
+      background: var(--accent);
+      color: var(--accent-on);
+      border-color: var(--accent);
+    }
+
+    .control-button.primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .control-button.primary:active {
+      background: var(--accent-active);
+    }
+
+    .control-button[aria-pressed="true"]:not(.primary) {
+      border-color: var(--fg);
+      background: color-mix(in oklab, var(--fg), transparent 93%);
+    }
+
+    .sr-only {
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      position: absolute;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 920px) {
+      body {
+        padding: var(--space-4);
+      }
+
+      .app-shell {
+        height: calc(100dvh - var(--space-8));
+        min-height: 680px;
+        grid-template-columns: 1fr;
+      }
+
+      .masthead {
+        padding: var(--space-5);
+      }
+
+      .focus-panel {
+        min-height: 0;
+        padding: var(--space-5) var(--space-6);
+      }
+
+      .usage-panel {
+        padding: var(--space-6);
+      }
+
+      .focus-time {
+        font-size: 56px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        display: block;
+        padding: 0;
+        background: var(--surface);
+      }
+
+      .app-shell {
+        width: 100%;
+        height: auto;
+        min-height: 100dvh;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(650px, auto) auto;
+        grid-template-areas:
+          "masthead"
+          "usage"
+          "focus";
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .masthead {
+        min-height: auto;
+        padding: var(--space-5);
+        grid-template-columns: 1fr;
+      }
+
+      .clock {
+        font-size: clamp(46px, 15vw, 60px);
+      }
+
+      .date {
+        margin-top: var(--space-2);
+      }
+
+      .weather {
+        justify-content: space-between;
+        gap: var(--space-4);
+      }
+
+      .weather-main svg {
+        width: 30px;
+        height: 30px;
+      }
+
+      .temperature {
+        font-size: var(--text-xl);
+      }
+
+      .weather-meta {
+        gap: var(--space-2) var(--space-3);
+      }
+
+      .focus-panel {
+        min-height: 190px;
+        padding: var(--space-5);
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .focus-summary {
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .focus-time {
+        font-size: 58px;
+      }
+
+      .controls {
+        margin-top: var(--space-3);
+      }
+
+      .control-button {
+        width: 52px;
+        height: 52px;
+      }
+
+      .usage-panel {
+        padding: var(--space-6) var(--space-5);
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .usage-list {
+        min-height: 590px;
+      }
+
+      .usage-card {
+        min-height: 590px;
+        padding: var(--space-5);
+      }
+
+      .provider-content {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+      }
+
+      .card-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .insights-column {
+        grid-template-rows: 116px auto;
+      }
+
+      .provider-update {
+        max-width: 110px;
+        white-space: normal;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .weather {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .usage-head {
+        flex-direction: column;
+      }
+
+      .provider-update {
+        max-width: none;
+        text-align: left;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell" data-od-id="focus-dashboard">
+    <header class="masthead" data-od-id="dashboard-header">
+      <div class="time-block">
+        <h1 class="clock" id="clock" data-od-id="current-time">09:41</h1>
+        <p class="date" data-od-id="current-date">2026.07.28 周二</p>
+      </div>
+
+      <div class="weather" data-od-id="weather-summary" aria-label="当前天气，30度，湿度66，风力42">
+        <div class="weather-main">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M14 35h21a8 8 0 0 0 0-16 11 11 0 0 0-21-3 9.5 9.5 0 0 0 0 19Z"/>
+            <path d="M14 10V6M8 13l-3-3M20 11l2-4"/>
+          </svg>
+          <strong class="temperature">30°</strong>
+        </div>
+
+        <div class="weather-meta">
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3s5 6 5 11a5 5 0 0 1-10 0c0-5 5-11 5-11Z"/>
+            </svg>
+            66
+          </span>
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9h10a3 3 0 1 0-3-3M4 14h14a3 3 0 1 1-3 3M4 19h7"/>
+            </svg>
+            42
+          </span>
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="7" width="17" height="10" rx="2"/>
+              <path d="M20 10h2v4h-2M7 10h7v4H7Z"/>
+            </svg>
+            78
+          </span>
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 10a10 10 0 0 1 14 0M8 13a6 6 0 0 1 8 0M11 16a2 2 0 0 1 2 0"/>
+            </svg>
+            在线
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <main class="dashboard" data-od-id="dashboard-main">
+      <section class="usage-panel" data-od-id="ai-usage-section" aria-label="AI 服务商用量">
+        <div
+          class="usage-list"
+          id="providerCarousel"
+          data-od-id="provider-carousel"
+          tabindex="0"
+          role="region"
+          aria-roledescription="服务商轮播"
+          aria-label="AI 服务商用量"
+        >
+          <article
+            class="usage-card"
+            data-agent="codex"
+            data-od-id="usage-card-codex"
+            role="group"
+            aria-roledescription="服务商"
+            aria-label="第 1 个，共 2 个：CODEX"
+            aria-current="true"
+          >
+            <header class="usage-head">
+              <div>
+                <h2 class="provider-title" data-od-id="provider-title-codex">Codex</h2>
+                <p class="provider-subline">
+                  <span>yanghe7968@gmail.com</span>
+                  <span>Pro 20x</span>
+                </p>
+              </div>
+              <p class="provider-update">1 分钟前更新 · OAuth</p>
+            </header>
+
+            <div class="provider-content">
+              <div class="quota-stack" data-od-id="codex-quota-windows">
+                <div class="quota-item">
+                  <div class="quota-heading">
+                    <span class="quota-label">每周</span>
+                    <span class="quota-reset">6天23时后重置</span>
+                  </div>
+                  <span class="quota-remaining">98% 剩余</span>
+                  <span class="meter" aria-label="每周额度已使用百分之二">
+                    <span class="meter-fill" style="--usage: 2%;"></span>
+                  </span>
+                </div>
+
+                <div class="quota-item">
+                  <div class="quota-heading">
+                    <span class="quota-label">Codex Spark Weekly</span>
+                    <span class="quota-reset">6天23时后重置</span>
+                  </div>
+                  <span class="quota-remaining">100% 剩余</span>
+                  <span class="meter" aria-label="Codex Spark Weekly 尚未使用">
+                    <span class="meter-fill" style="--usage: 0%;"></span>
+                  </span>
+                </div>
+
+                <div class="quota-item">
+                  <div class="quota-heading">
+                    <span class="quota-label">代码审查</span>
+                    <span class="quota-reset">6天23时后重置</span>
+                  </div>
+                  <span class="quota-remaining">98% 剩余</span>
+                  <span class="meter" aria-label="代码审查额度已使用百分之二">
+                    <span class="meter-fill" style="--usage: 2%;"></span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="insights-column">
+                <div class="daily-usage" data-od-id="codex-daily-usage">
+                  <div class="daily-usage-head">
+                    <h3 class="daily-usage-title">每日 Token 用量</h3>
+                    <span class="daily-usage-total">峰值成本 $1,161</span>
+                  </div>
+                  <div class="daily-bars" role="img" aria-label="最近 30 天每日 Token 用量柱状图">
+                    <span class="daily-bar" style="--bar: 24%;"></span>
+                    <span class="daily-bar" style="--bar: 48%;"></span>
+                    <span class="daily-bar" style="--bar: 29%;"></span>
+                    <span class="daily-bar" style="--bar: 46%;"></span>
+                    <span class="daily-bar" style="--bar: 25%;"></span>
+                    <span class="daily-bar" style="--bar: 65%;"></span>
+                    <span class="daily-bar" style="--bar: 74%;"></span>
+                    <span class="daily-bar" style="--bar: 58%;"></span>
+                    <span class="daily-bar" style="--bar: 27%;"></span>
+                    <span class="daily-bar" style="--bar: 23%;"></span>
+                    <span class="daily-bar" style="--bar: 96%;"></span>
+                    <span class="daily-bar" style="--bar: 66%;"></span>
+                    <span class="daily-bar" style="--bar: 8%;"></span>
+                    <span class="daily-bar" style="--bar: 64%;"></span>
+                    <span class="daily-bar" style="--bar: 53%;"></span>
+                    <span class="daily-bar" style="--bar: 46%;"></span>
+                    <span class="daily-bar" style="--bar: 92%;"></span>
+                    <span class="daily-bar" style="--bar: 27%;"></span>
+                    <span class="daily-bar" style="--bar: 36%;"></span>
+                    <span class="daily-bar" style="--bar: 51%;"></span>
+                    <span class="daily-bar" style="--bar: 29%;"></span>
+                    <span class="daily-bar" style="--bar: 19%;"></span>
+                    <span class="daily-bar" style="--bar: 30%;"></span>
+                    <span class="daily-bar" style="--bar: 61%;"></span>
+                    <span class="daily-bar" style="--bar: 43%;"></span>
+                    <span class="daily-bar" style="--bar: 12%;"></span>
+                    <span class="daily-bar" style="--bar: 28%;"></span>
+                    <span class="daily-bar" style="--bar: 49%;"></span>
+                    <span class="daily-bar" style="--bar: 10%;"></span>
+                  </div>
+                </div>
+
+                <div class="card-details" data-od-id="codex-usage-details">
+                  <span class="metric">
+                    <span class="metric-label">今日成本</span>
+                    <span class="metric-value">$102.86</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">近 30 天</span>
+                    <span class="metric-value">$14,250.41</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">最近 Token</span>
+                    <span class="metric-value">137M</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">近 30 天 Token</span>
+                    <span class="metric-value">19B</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">常用模型</span>
+                    <span class="metric-value">gpt-5.6-sol</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">计费口径</span>
+                    <span class="metric-value muted-value">Token 估算</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article
+            class="usage-card"
+            data-agent="claude"
+            data-od-id="usage-card-claude"
+            role="group"
+            aria-roledescription="服务商"
+            aria-label="第 2 个，共 2 个：CLAUDE"
+            aria-current="false"
+          >
+            <header class="usage-head">
+              <div>
+                <h2 class="provider-title" data-od-id="provider-title-claude">Claude</h2>
+                <p class="provider-subline">
+                  <span>账户未返回</span>
+                  <span>套餐未返回</span>
+                </p>
+              </div>
+              <p class="provider-update">等待更新 · Web</p>
+            </header>
+
+            <div class="provider-content">
+              <div class="quota-stack" data-od-id="claude-quota-windows">
+                <div class="quota-item">
+                  <div class="quota-heading">
+                    <span class="quota-label">5 小时窗口</span>
+                    <span class="quota-reset">重置时间未返回</span>
+                  </div>
+                  <span class="quota-remaining">70% 剩余</span>
+                  <span class="meter" aria-label="5小时窗口已使用百分之三十">
+                    <span class="meter-fill" style="--usage: 30%;"></span>
+                  </span>
+                </div>
+
+                <div class="quota-item">
+                  <div class="quota-heading">
+                    <span class="quota-label">每周</span>
+                    <span class="quota-reset">等待数据</span>
+                  </div>
+                  <span class="quota-remaining">未返回</span>
+                  <span class="meter" aria-label="每周额度暂未返回">
+                    <span class="meter-fill" style="--usage: 0%;"></span>
+                  </span>
+                </div>
+
+                <div class="quota-item">
+                  <div class="quota-heading">
+                    <span class="quota-label">额外用量</span>
+                    <span class="quota-reset">等待数据</span>
+                  </div>
+                  <span class="quota-remaining">未返回</span>
+                  <span class="meter" aria-label="额外用量暂未返回">
+                    <span class="meter-fill" style="--usage: 0%;"></span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="insights-column">
+                <div class="daily-usage is-empty" data-od-id="claude-daily-usage">
+                  <div class="daily-usage-head">
+                    <h3 class="daily-usage-title">每日用量暂未返回</h3>
+                  </div>
+                </div>
+
+                <div class="card-details" data-od-id="claude-usage-details">
+                  <span class="metric">
+                    <span class="metric-label">Credits</span>
+                    <span class="metric-value muted-value">快照未提供</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">今日成本</span>
+                    <span class="metric-value muted-value">快照未提供</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">近 30 天</span>
+                    <span class="metric-value muted-value">快照未提供</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">最近 Token</span>
+                    <span class="metric-value muted-value">v1 未暴露</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">常用模型</span>
+                    <span class="metric-value muted-value">v1 未暴露</span>
+                  </span>
+                  <span class="metric">
+                    <span class="metric-label">服务状态</span>
+                    <span class="metric-value muted-value">待检查</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div
+          class="provider-dots"
+          id="providerDots"
+          data-od-id="provider-pagination"
+          role="tablist"
+          aria-label="选择 AI 服务商"
+        ></div>
+      </section>
+
+      <section class="focus-panel" data-od-id="focus-timer-section" aria-labelledby="focus-title">
+        <div class="focus-summary">
+          <h2 class="focus-label" id="focus-title" data-od-id="focus-heading">专注计时</h2>
+          <div class="focus-readout">
+            <p class="focus-time" id="focusMinutes" data-od-id="focus-minutes">25</p>
+            <p class="focus-unit">分钟</p>
+          </div>
+        </div>
+
+        <div class="controls" data-od-id="focus-controls">
+          <button
+            class="control-button primary"
+            id="playButton"
+            type="button"
+            data-od-id="play-control"
+            aria-label="开始专注"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m8 5 11 7-11 7V5Z"/>
+            </svg>
+          </button>
+
+          <button
+            class="control-button"
+            id="pauseButton"
+            type="button"
+            data-od-id="pause-control"
+            aria-label="暂停专注"
+            aria-pressed="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14M16 5v14"/>
+            </svg>
+          </button>
+
+          <button
+            class="control-button"
+            id="resetButton"
+            type="button"
+            data-od-id="reset-control"
+            aria-label="重置为 25 分钟"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 11a8 8 0 1 1-2.3-5.7L20 8"/>
+              <path d="M20 3v5h-5"/>
+            </svg>
+          </button>
+        </div>
+
+        <p class="sr-only" id="timerStatus" aria-live="polite">专注计时器已准备</p>
+      </section>
+    </main>
+
+  </div>
+
+  <script>
+    (() => {
+      const INITIAL_SECONDS = 25 * 60;
+      let remainingSeconds = INITIAL_SECONDS;
+      let intervalId = null;
+
+      const minutesNode = document.getElementById("focusMinutes");
+      const statusNode = document.getElementById("timerStatus");
+      const playButton = document.getElementById("playButton");
+      const pauseButton = document.getElementById("pauseButton");
+      const resetButton = document.getElementById("resetButton");
+      const clockNode = document.getElementById("clock");
+      const providerCarousel = document.getElementById("providerCarousel");
+      const providerDots = document.getElementById("providerDots");
+      const usageCards = [...document.querySelectorAll(".usage-card")];
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+      let activeProviderIndex = 0;
+      let carouselFrame = null;
+
+      const renderTimer = () => {
+        minutesNode.textContent = String(Math.max(0, Math.ceil(remainingSeconds / 60))).padStart(2, "0");
+        document.title = `${minutesNode.textContent} 分钟 · 惜墨专注仪表盘`;
+      };
+
+      const setRunningState = (running) => {
+        playButton.setAttribute("aria-pressed", String(running));
+        pauseButton.setAttribute("aria-pressed", String(!running && remainingSeconds < INITIAL_SECONDS));
+      };
+
+      const pauseTimer = (announce = true) => {
+        if (intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+        setRunningState(false);
+        if (announce) statusNode.textContent = "专注计时已暂停";
+      };
+
+      const startTimer = () => {
+        if (intervalId !== null) return;
+        if (remainingSeconds <= 0) remainingSeconds = INITIAL_SECONDS;
+
+        setRunningState(true);
+        statusNode.textContent = "专注计时已开始";
+
+        intervalId = window.setInterval(() => {
+          remainingSeconds -= 1;
+          renderTimer();
+
+          if (remainingSeconds <= 0) {
+            pauseTimer(false);
+            statusNode.textContent = "本次专注已完成";
+          }
+        }, 1000);
+      };
+
+      const resetTimer = () => {
+        pauseTimer(false);
+        remainingSeconds = INITIAL_SECONDS;
+        renderTimer();
+        pauseButton.setAttribute("aria-pressed", "false");
+        statusNode.textContent = "专注计时已重置为 25 分钟";
+      };
+
+      const renderClock = () => {
+        const now = new Date();
+        const value = new Intl.DateTimeFormat("zh-CN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false
+        }).format(now);
+
+        clockNode.textContent = value;
+      };
+
+      const providerName = (card) =>
+        card.querySelector(".provider-title")?.textContent?.trim() ||
+        card.dataset.agent ||
+        "AI 服务商";
+
+      const buildProviderDots = () => {
+        providerDots.replaceChildren();
+        usageCards.forEach((card, index) => {
+          const name = providerName(card);
+          const cardId = `provider-card-${card.dataset.agent || index + 1}`;
+          const dot = document.createElement("button");
+
+          card.id = cardId;
+          dot.type = "button";
+          dot.className = "provider-dot";
+          dot.setAttribute("role", "tab");
+          dot.setAttribute("aria-controls", cardId);
+          dot.setAttribute("aria-label", `显示 ${name}`);
+          dot.addEventListener("click", () => showProvider(index));
+          providerDots.append(dot);
+        });
+      };
+
+      const updateProviderState = (index, announce = false) => {
+        activeProviderIndex = Math.max(0, Math.min(index, usageCards.length - 1));
+
+        usageCards.forEach((card, cardIndex) => {
+          card.setAttribute("aria-current", String(cardIndex === activeProviderIndex));
+          card.setAttribute(
+            "aria-label",
+            `第 ${cardIndex + 1} 个，共 ${usageCards.length} 个：${providerName(card)}`
+          );
+        });
+
+        [...providerDots.children].forEach((dot, dotIndex) => {
+          const isActive = dotIndex === activeProviderIndex;
+          dot.setAttribute("aria-current", String(isActive));
+          dot.setAttribute("aria-selected", String(isActive));
+          dot.tabIndex = isActive ? 0 : -1;
+        });
+
+        if (announce) {
+          statusNode.textContent = `正在显示 ${providerName(usageCards[activeProviderIndex])} 用量`;
+        }
+      };
+
+      const showProvider = (index, announce = true) => {
+        const wrappedIndex = (index + usageCards.length) % usageCards.length;
+        const target = usageCards[wrappedIndex];
+
+        updateProviderState(wrappedIndex, announce);
+        providerCarousel.scrollTo({
+          left: target.offsetLeft - providerCarousel.offsetLeft,
+          behavior: prefersReducedMotion.matches ? "auto" : "smooth"
+        });
+      };
+
+      const syncProviderFromScroll = () => {
+        carouselFrame = null;
+        const closestIndex = usageCards.reduce((bestIndex, card, cardIndex) => {
+          const bestDistance = Math.abs(
+            usageCards[bestIndex].offsetLeft - providerCarousel.offsetLeft - providerCarousel.scrollLeft
+          );
+          const cardDistance = Math.abs(
+            card.offsetLeft - providerCarousel.offsetLeft - providerCarousel.scrollLeft
+          );
+          return cardDistance < bestDistance ? cardIndex : bestIndex;
+        }, 0);
+
+        if (closestIndex !== activeProviderIndex) updateProviderState(closestIndex, true);
+      };
+
+      playButton.addEventListener("click", startTimer);
+      pauseButton.addEventListener("click", () => pauseTimer(true));
+      resetButton.addEventListener("click", resetTimer);
+
+      providerCarousel.addEventListener("scroll", () => {
+        if (carouselFrame !== null) window.cancelAnimationFrame(carouselFrame);
+        carouselFrame = window.requestAnimationFrame(syncProviderFromScroll);
+      });
+
+      providerCarousel.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          showProvider(activeProviderIndex - 1);
+        }
+        if (event.key === "ArrowRight") {
+          event.preventDefault();
+          showProvider(activeProviderIndex + 1);
+        }
+      });
+
+      window.addEventListener("resize", () => showProvider(activeProviderIndex, false));
+
+      document.addEventListener("keydown", (event) => {
+        if (
+          event.code !== "Space" ||
+          event.target.closest("button") ||
+          event.target.closest(".usage-list")
+        ) return;
+        event.preventDefault();
+        intervalId === null ? startTimer() : pauseTimer(true);
+      });
+
+      renderTimer();
+      buildProviderDots();
+      updateProviderState(0);
+      window.setInterval(renderClock, 30000);
+    })();
+  </script>
+</body>
+</html>

@@ -51,7 +51,19 @@
       },
       "cost": {
         "todayUSD": 1.04,
-        "last30DaysUSD": 18.22
+        "last30DaysUSD": 18.22,
+        "daily": [
+          {
+            "date": "2026-07-22",
+            "costUSD": 0.55,
+            "totalTokens": 12700
+          },
+          {
+            "date": "2026-07-23",
+            "costUSD": 1.04,
+            "totalTokens": 24100
+          }
+        ]
       },
       "display": {
         "accentColor": "#49A3B0",

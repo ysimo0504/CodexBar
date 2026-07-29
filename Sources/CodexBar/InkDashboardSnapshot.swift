@@ -10,8 +10,31 @@ enum InkDashboardSnapshot {
         let status: ProviderStatus?
         let snapshot: UsageSnapshot?
         let credits: CreditsSnapshot?
+        let cost: CostUsageTokenSnapshot?
         let hasError: Bool
         let sortKey: Int
+
+        init(
+            provider: UsageProvider,
+            name: String,
+            source: String,
+            status: ProviderStatus?,
+            snapshot: UsageSnapshot?,
+            credits: CreditsSnapshot?,
+            cost: CostUsageTokenSnapshot? = nil,
+            hasError: Bool,
+            sortKey: Int)
+        {
+            self.provider = provider
+            self.name = name
+            self.source = source
+            self.status = status
+            self.snapshot = snapshot
+            self.credits = credits
+            self.cost = cost
+            self.hasError = hasError
+            self.sortKey = sortKey
+        }
     }
 
     static func encode(store: UsageStore, settings: SettingsStore, appVersion: String?) throws -> Data {
@@ -23,6 +46,7 @@ enum InkDashboardSnapshot {
                 status: store.status(for: provider),
                 snapshot: store.presentationSnapshot(for: provider),
                 credits: provider == .codex ? store.credits : nil,
+                cost: store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot,
                 hasError: store.error(for: provider) != nil,
                 sortKey: index * 10)
         }
@@ -76,7 +100,7 @@ enum InkDashboardSnapshot {
             identity: self.identity(identity),
             windows: windows,
             credits: record.credits.map { Credits(remaining: $0.remaining, unit: "credits") },
-            cost: nil,
+            cost: self.cost(record.cost),
             display: Display(accentColor: "#6E6E6E", sortKey: record.sortKey, priority: "normal"),
             error: record.hasError ? ErrorPayload(
                 code: 1,
@@ -121,6 +145,35 @@ enum InkDashboardSnapshot {
         }
     }
 
+    private static func cost(_ snapshot: CostUsageTokenSnapshot?) -> Cost? {
+        guard let snapshot else { return nil }
+        let daily = snapshot.daily.suffix(30).compactMap { entry -> DailyUsage? in
+            let costUSD = entry.costUSD.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
+            let totalTokens = entry.totalTokens.flatMap { $0 >= 0 ? $0 : nil }
+            guard costUSD != nil || totalTokens != nil else { return nil }
+            return DailyUsage(
+                date: String(entry.date.prefix(10)),
+                costUSD: costUSD,
+                totalTokens: totalTokens)
+        }
+        let todayUSD = snapshot.currentDayEntry()?.costUSD.flatMap {
+            $0.isFinite && $0 >= 0 ? $0 : nil
+        }
+        let last30DaysUSD = snapshot.last30DaysCostUSD.flatMap {
+            $0.isFinite && $0 >= 0 ? $0 : nil
+        }
+        guard todayUSD != nil ||
+            last30DaysUSD != nil ||
+            !daily.isEmpty
+        else {
+            return nil
+        }
+        return Cost(
+            todayUSD: todayUSD,
+            last30DaysUSD: last30DaysUSD,
+            daily: daily)
+    }
+
     private struct Payload: Encodable {
         let schemaVersion: Int
         let generatedAt: Date
@@ -160,7 +213,18 @@ enum InkDashboardSnapshot {
     }
 
     private struct Credits: Encodable { let remaining: Double; let unit: String }
-    private struct Cost: Encodable { let todayUSD: Double?; let last30DaysUSD: Double? }
+    private struct Cost: Encodable {
+        let todayUSD: Double?
+        let last30DaysUSD: Double?
+        let daily: [DailyUsage]
+    }
+
+    private struct DailyUsage: Encodable {
+        let date: String
+        let costUSD: Double?
+        let totalTokens: Int?
+    }
+
     private struct Display: Encodable { let accentColor: String; let sortKey: Int; let priority: String }
     private struct ErrorPayload: Encodable { let code: Int; let message: String; let kind: String; let reason: String }
 }

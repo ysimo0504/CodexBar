@@ -7,6 +7,7 @@ import com.ysimo.codexbar.ink.core.SemanticChangeSet
 
 interface DisplayAdapter {
     val capabilityLabel: String
+    val supportsColor: Boolean
 
     fun attach(rootView: View)
 
@@ -21,6 +22,7 @@ class GenericDisplayAdapter : DisplayAdapter {
     private var rootView: View? = null
 
     override val capabilityLabel: String = "Generic Android refresh"
+    override val supportsColor: Boolean = true
 
     override fun attach(rootView: View) {
         this.rootView = rootView

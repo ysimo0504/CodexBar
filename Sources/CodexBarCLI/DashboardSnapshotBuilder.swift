@@ -243,10 +243,18 @@ enum DashboardSnapshotBuilder {
     private static func makeCost(_ cost: CostPayload?, referenceDate: Date) -> DashboardCostPayload? {
         guard let cost else { return nil }
         let todayUSD = self.todayCostUSD(cost, referenceDate: referenceDate)
-        guard todayUSD != nil || cost.last30DaysCostUSD != nil else { return nil }
+        let daily = cost.daily.suffix(30).compactMap { entry -> DashboardDailyUsagePayload? in
+            guard entry.costUSD != nil || entry.totalTokens != nil else { return nil }
+            return DashboardDailyUsagePayload(
+                date: String(entry.date.prefix(10)),
+                costUSD: entry.costUSD,
+                totalTokens: entry.totalTokens)
+        }
+        guard todayUSD != nil || cost.last30DaysCostUSD != nil || !daily.isEmpty else { return nil }
         return DashboardCostPayload(
             todayUSD: todayUSD,
-            last30DaysUSD: cost.last30DaysCostUSD)
+            last30DaysUSD: cost.last30DaysCostUSD,
+            daily: daily)
     }
 
     private static func todayCostUSD(_ cost: CostPayload, referenceDate: Date) -> Double? {

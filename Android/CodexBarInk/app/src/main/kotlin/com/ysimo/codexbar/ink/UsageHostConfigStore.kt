@@ -6,7 +6,9 @@ class UsageHostConfigStore(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     fun load(): UsageHostEndpoint? {
-        val origin = preferences.getString(KEY_ORIGIN, null) ?: return null
+        val origin = preferences.getString(KEY_ORIGIN, null)
+            ?: BuildConfig.DEFAULT_USAGE_HOST.takeIf { it.isNotBlank() }
+            ?: return null
         runCatching { UsageHostEndpoint.parse(origin) }.getOrNull()?.let { return it }
         if (origin.startsWith("https://")) {
             return runCatching { save("http://${origin.removePrefix("https://")}") }.getOrNull()

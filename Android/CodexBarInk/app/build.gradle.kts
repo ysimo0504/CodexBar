@@ -9,6 +9,10 @@ val fixtureURL = providers.gradleProperty("codexbarInkFixtureUrl").orElse("").ge
 val fixtureToken = providers.gradleProperty("codexbarInkFixtureToken")
     .orElse("codexbar-ink-fixture-token")
     .get()
+val defaultUsageHost = providers.gradleProperty("codexbarInkDefaultHost")
+    .orElse(providers.environmentVariable("CODEXBAR_INK_DEFAULT_HOST"))
+    .orElse("")
+    .get()
 
 android {
     namespace = "com.ysimo.codexbar.ink"
@@ -20,6 +24,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0-dev"
+        buildConfigField("String", "DEFAULT_USAGE_HOST", defaultUsageHost.asBuildConfigString())
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

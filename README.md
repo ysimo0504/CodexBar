@@ -1,4 +1,80 @@
-# CodexBar 🎚️ — May your tokens never run out.
+# CodexBar Ink
+
+> CodexBar 的 Android / BOOX 墨水屏伴侣仪表盘。
+
+[![Fork](https://img.shields.io/badge/fork-steipete%2FCodexBar-0a0a0c?style=flat-square)](https://github.com/steipete/CodexBar)
+[![Android 11+](https://img.shields.io/badge/Android-11%2B-3ddc84?style=flat-square&logo=android&logoColor=white)](Android/CodexBarInk)
+[![BOOX](https://img.shields.io/badge/BOOX-e--ink-171717?style=flat-square)](Android/CodexBarInk)
+[![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
+
+这是 [CodexBar](https://github.com/steipete/CodexBar) 的社区 Fork。它保留上游 macOS 菜单栏应用和 CLI，
+并增加 **CodexBar Ink**：面向 Android 手机与 BOOX 墨水屏阅读器的常亮信息仪表盘。
+
+CodexBar Ink 通过同一局域网读取 Mac 上 CodexBar 提供的快照。Provider 凭据仍留在 Mac，
+Android 端不保存 Codex、Claude 或其他 Provider 的账号密码与访问令牌。
+
+## CodexBar Ink 功能
+
+- 突出显示 Codex Weekly、Codex Spark Weekly 等核心用量窗口。
+- 原生绘制每日成本图表，不使用图片快照。
+- 支持竖屏、横屏、手机长屏与阅读器比例，并按屏幕方向切换纵向或横向布局。
+- 针对 BOOX 提供高对比度排版、低频刷新和局部刷新，兼顾清晰度与续航。
+- 内置番茄时钟；运行时保持屏幕常亮，但只在必要区域更新。
+- 天气优先申请设备 GPS 定位，不可用时回退到网络定位；天气来自 Open-Meteo，无需 API Key。
+- 界面跟随 Android 系统语言，当前包含英文和简体中文。
+
+## 快速开始
+
+### 1. 启动 Mac 数据主机
+
+在 CodexBar 的 **Settings → General** 中启用 **BOOX Usage Host**。Mac 与 Android 设备需要位于同一局域网。
+
+### 2. 构建 Android APK
+
+需要 JDK 17、Android SDK 以及 Android 11 或更高版本：
+
+```bash
+git clone https://github.com/ysimo0504/CodexBar.git
+cd CodexBar/Android/CodexBarInk
+
+JAVA_HOME=/path/to/jdk17 \
+ANDROID_HOME=/path/to/android-sdk \
+CODEXBAR_INK_DEFAULT_HOST=http://MAC_LAN_IP:43121 \
+./gradlew :app:assembleSecureBooxDebug
+```
+
+普通 Android 手机可将任务替换为 `:app:assembleSecureGenericDebug`。构建时注入的 Host 只进入本地 APK，
+不会写回仓库；也可以在应用内修改。
+
+### 3. 安装
+
+```bash
+adb install -r app/build/outputs/apk/secureBoox/debug/app-secure-boox-debug.apk
+```
+
+BOOX 固件若自动冻结新安装应用，请在应用管理中解除冻结。更多构建变体、测试命令和设备说明见
+[Android/CodexBarInk/README.md](Android/CodexBarInk/README.md)。
+
+## 项目结构
+
+```text
+Android/CodexBarInk/       Android 与 BOOX 客户端
+Sources/CodexBar/          macOS 菜单栏应用及数据主机
+Sources/CodexBarCLI/       CLI 与仪表盘快照生成
+Sources/CodexBarCore/Ink/  局域网传输协议
+```
+
+当前 Android 客户端仍处于开发阶段，暂未提供签名 Release APK。请从源码构建，不要在公网暴露局域网
+Usage Host。
+
+## 上游与许可证
+
+本 Fork 基于 Peter Steinberger 的 [steipete/CodexBar](https://github.com/steipete/CodexBar)，
+上游项目及本 Fork 均使用 [MIT License](LICENSE)。原始版权声明保留在许可证中。
+
+---
+
+## Upstream CodexBar 🎚️ — May your tokens never run out.
 
 > Every AI coding limit, in your menu bar.
 

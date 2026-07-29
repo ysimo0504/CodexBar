@@ -28,8 +28,15 @@ The canonical fixture is consumed directly from `docs/fixtures`; it is not copie
 
 ## Local Host
 
-Enable **BOOX Usage Host** in CodexBar's General settings and copy **Host**. On BOOX, open **Host**, paste, save, and
-refresh. It uses direct private-LAN HTTP with no account, token, certificate, or third-party service.
+Enable **BOOX Usage Host** in CodexBar's General settings. Local builds can inject that Host as the reader's default,
+while the in-app setting remains available as an override:
+
+```bash
+CODEXBAR_INK_DEFAULT_HOST=http://MAC_LAN_IP:43121 ./gradlew :app:assembleSecureBooxDebug
+```
+
+The reader uses direct private-LAN HTTP with no account, token, certificate, or third-party service. The default is a
+build input so a developer's changing private IP is never committed to the repository.
 
 ## Fixture-only host
 

@@ -1,0 +1,37 @@
+<resources>
+    <string name="app_name">CodexBar 墨水屏</string>
+    <string name="refresh_now">立即刷新</string>
+    <string name="open_settings">打开设置</string>
+    <string name="waiting_for_fixture">正在等待数据快照…</string>
+    <string name="usage_host_title">数据主机</string>
+    <string name="host_hint">http://192.168.x.x:43121</string>
+    <string name="host_required">请输入 CodexBar 显示的主机地址</string>
+    <string name="save_host">保存</string>
+    <string name="focus_timer">专注计时</string>
+    <string name="remaining">剩余</string>
+    <string name="start_focus">开始专注计时</string>
+    <string name="pause_focus">暂停专注计时</string>
+    <string name="reset_focus">重置专注计时</string>
+    <string name="usage_history_unavailable">当前快照没有每日历史数据</string>
+    <string name="daily_usage">每日用量 · 14 天</string>
+    <string name="daily_cost">每日成本 · 14 天</string>
+    <string name="daily_tokens">每日 Token · 14 天</string>
+    <string name="provider_page">显示 %1$s，第 %2$d 页，共 %3$d 页</string>
+    <string name="source_network_failed">网络失败 · 显示缓存</string>
+    <string name="weather_temperature_unknown">--°</string>
+    <string name="weather_temperature_value">%1$.0f°</string>
+    <string name="weather_enable">启用定位天气</string>
+    <string name="weather_locating">正在定位…</string>
+    <string name="weather_loading">正在获取天气…</string>
+    <string name="weather_unavailable">天气不可用 · 点按重试</string>
+    <string name="weather_details">湿度 %1$d%% · 风速 %2$.0f km/h</string>
+    <string name="weather_attribution">天气：Open-Meteo</string>
+    <string name="weather_description">%1$s，%2$.0f 度。湿度 %3$d%%，风速每小时 %4$.0f 公里。</string>
+    <string name="weather_clear">晴</string>
+    <string name="weather_cloudy">多云</string>
+    <string name="weather_fog">有雾</string>
+    <string name="weather_rain">有雨</string>
+    <string name="weather_snow">有雪</string>
+    <string name="weather_storm">雷暴</string>
+    <string name="weather_unknown">天气</string>
+</resources>

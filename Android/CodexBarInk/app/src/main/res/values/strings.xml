@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">CodexBar Ink</string>
-    <string name="dashboard_title">CODEXBAR INK</string>
     <string name="refresh_now">Refresh now</string>
     <string name="open_settings">Open settings</string>
     <string name="waiting_for_fixture">Waiting for snapshot…</string>
@@ -8,7 +7,31 @@
     <string name="host_hint">http://192.168.x.x:43121</string>
     <string name="host_required">Enter the Host shown by CodexBar</string>
     <string name="save_host">SAVE</string>
-    <string name="codex_provider">Codex</string>
-    <string name="claude_provider">Claude</string>
-    <string name="other_providers">OTHER PROVIDERS</string>
+    <string name="focus_timer">Focus timer</string>
+    <string name="remaining">Remaining</string>
+    <string name="start_focus">Start focus timer</string>
+    <string name="pause_focus">Pause focus timer</string>
+    <string name="reset_focus">Reset focus timer</string>
+    <string name="usage_history_unavailable">Daily history is not available in this snapshot</string>
+    <string name="daily_usage">Daily usage · 14 days</string>
+    <string name="daily_cost">Daily cost · 14 days</string>
+    <string name="daily_tokens">Daily tokens · 14 days</string>
+    <string name="provider_page">Show %1$s, page %2$d of %3$d</string>
+    <string name="source_network_failed">NETWORK FAILED · LAST-GOOD</string>
+    <string name="weather_temperature_unknown">--°</string>
+    <string name="weather_temperature_value">%1$.0f°</string>
+    <string name="weather_enable">Enable location weather</string>
+    <string name="weather_locating">Locating…</string>
+    <string name="weather_loading">Loading weather…</string>
+    <string name="weather_unavailable">Weather unavailable · tap to retry</string>
+    <string name="weather_details">Humidity %1$d%% · Wind %2$.0f km/h</string>
+    <string name="weather_attribution">Weather: Open-Meteo</string>
+    <string name="weather_description">%1$s, %2$.0f degrees. Humidity %3$d percent. Wind %4$.0f kilometers per hour.</string>
+    <string name="weather_clear">Clear</string>
+    <string name="weather_cloudy">Cloudy</string>
+    <string name="weather_fog">Fog</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_snow">Snow</string>
+    <string name="weather_storm">Storm</string>
+    <string name="weather_unknown">Weather</string>
 </resources>

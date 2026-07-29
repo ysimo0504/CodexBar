@@ -185,17 +185,26 @@ struct DashboardCreditsPayload: Encodable {
 struct DashboardCostPayload: Encodable {
     let todayUSD: Double?
     let last30DaysUSD: Double?
+    let daily: [DashboardDailyUsagePayload]
 
     private enum CodingKeys: String, CodingKey {
         case todayUSD
         case last30DaysUSD
+        case daily
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.todayUSD, forKey: .todayUSD)
         try container.encode(self.last30DaysUSD, forKey: .last30DaysUSD)
+        try container.encode(self.daily, forKey: .daily)
     }
+}
+
+struct DashboardDailyUsagePayload: Encodable {
+    let date: String
+    let costUSD: Double?
+    let totalTokens: Int?
 }
 
 struct DashboardDisplayPayload: Encodable {

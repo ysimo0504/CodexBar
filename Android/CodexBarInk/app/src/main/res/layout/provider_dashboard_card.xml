@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/provider_card"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:importantForAccessibility="yes"
+    android:orientation="vertical"
+    android:screenReaderFocusable="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="top"
+        android:orientation="horizontal"
+        android:paddingTop="4dp"
+        android:paddingBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/provider_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:accessibilityHeading="true"
+                android:fontFamily="sans-serif"
+                android:letterSpacing="0.04"
+                android:textAllCaps="true"
+                android:textColor="@color/ink_black"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                tools:text="CODEX" />
+
+            <TextView
+                android:id="@+id/provider_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:maxLines="1"
+                android:textColor="@color/ink_mid"
+                android:textSize="14sp"
+                tools:text="PRO · AVAILABLE" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/provider_update"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:gravity="end"
+            android:letterSpacing="0.05"
+            android:maxLines="1"
+            android:textColor="@color/ink_mid"
+            android:textSize="14sp"
+            tools:text="2M AGO · OAUTH" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/provider_content"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:baselineAligned="false"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/quota_container"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.88"
+            android:orientation="vertical" />
+
+        <LinearLayout
+            android:id="@+id/insights_column"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="20dp"
+            android:layout_weight="1.62"
+            android:orientation="vertical">
+
+            <View
+                android:id="@+id/insights_divider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@color/ink_black" />
+
+            <com.ysimo.codexbar.ink.DailyUsageChartView
+                android:id="@+id/daily_usage_chart"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:paddingTop="10dp"
+                android:paddingBottom="4dp" />
+
+            <GridLayout
+                android:id="@+id/provider_metrics"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:alignmentMode="alignMargins"
+                android:columnCount="3"
+                android:orientation="horizontal"
+                android:rowCount="2"
+                android:useDefaultMargins="false" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

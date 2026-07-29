@@ -1,16 +1,10 @@
 <resources>
     <color name="ink_black">#000000</color>
-    <color name="ink_dark">#323232</color>
-    <color name="ink_mid">#666666</color>
-    <color name="ink_light">#D7D7D7</color>
+    <color name="ink_dark">#1F1F1F</color>
+    <color name="ink_mid">#303030</color>
+    <color name="ink_light">#A8A8A8</color>
+    <color name="accent_codex">#0070F3</color>
+    <color name="accent_claude">#7928CA</color>
     <color name="paper">#FFFFFF</color>
-    <color name="paper_card">#FFFFFF</color>
-    <color name="paper_codex">#FFFFFF</color>
-    <color name="paper_claude">#FFFFFF</color>
-    <color name="codex_accent">#0068FF</color>
-    <color name="claude_accent">#FF3B00</color>
-    <color name="cursor_accent">#7000FF</color>
-    <color name="provider_accent_magenta">#D90070</color>
-    <color name="provider_accent_cyan">#008FD6</color>
-    <color name="provider_accent_green">#008F32</color>
+    <color name="paper_soft">#FAFAFA</color>
 </resources>
