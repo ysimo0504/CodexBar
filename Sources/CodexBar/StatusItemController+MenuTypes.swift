@@ -3,6 +3,11 @@ import CodexBarCore
 import SwiftUI
 
 extension StatusItemController {
+    var selectedMenuProvider: ProviderInstanceID? {
+        get { self.settings.selectedMenuProvider }
+        set { self.settings.selectedMenuProvider = newValue }
+    }
+
     var fallbackProvider: UsageProvider? {
         // Intentionally uses availability-filtered list: fallback activates when no provider
         // can actually work, ensuring at least a codex icon is always visible.
@@ -15,13 +20,22 @@ extension ProviderSwitcherSelection {
         switch self {
         case .overview:
             nil
-        case let .provider(provider):
-            provider
+        case let .provider(instanceID):
+            instanceID.firstPartyProvider
+        }
+    }
+
+    var instanceID: ProviderInstanceID? {
+        switch self {
+        case .overview: nil
+        case let .provider(instanceID): instanceID
         }
     }
 }
 
 struct OverviewMenuCardRowView: View {
+    static let showsSectionDividers = false
+
     let model: UsageMenuCardView.Model
     let storageText: String?
     let width: CGFloat
@@ -31,14 +45,16 @@ struct OverviewMenuCardRowView: View {
         VStack(alignment: .leading, spacing: 0) {
             UsageMenuCardHeaderSectionView(
                 model: self.model,
-                showDivider: self.hasUsageBlock,
+                showDivider: Self.showsSectionDividers && self.hasUsageBlock,
                 width: self.width)
             if self.hasUsageBlock {
                 UsageMenuCardUsageSectionView(
                     model: self.model,
+                    layoutModel: self.model,
                     showBottomDivider: false,
                     bottomPadding: 6,
-                    width: self.width)
+                    width: self.width,
+                    showsSectionDividers: Self.showsSectionDividers)
             }
             if let storageText {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -169,7 +185,9 @@ struct CodexAccountMenuDisplay: Equatable {
                 id: snapshot.id,
                 hasSnapshot: snapshot.snapshot != nil,
                 error: snapshot.error,
-                sourceLabel: snapshot.sourceLabel)
+                sourceLabel: snapshot.sourceLabel,
+                creditLimitUsed: snapshot.credits?.codexCreditLimit?.used,
+                creditLimit: snapshot.credits?.codexCreditLimit?.limit)
         }
     }
 
@@ -178,5 +196,7 @@ struct CodexAccountMenuDisplay: Equatable {
         let hasSnapshot: Bool
         let error: String?
         let sourceLabel: String?
+        let creditLimitUsed: Double?
+        let creditLimit: Double?
     }
 }

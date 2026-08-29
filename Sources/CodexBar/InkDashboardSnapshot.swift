@@ -38,13 +38,14 @@ enum InkDashboardSnapshot {
     }
 
     static func encode(store: UsageStore, settings: SettingsStore, appVersion: String?) throws -> Data {
-        let records = store.enabledProvidersForDisplay().enumerated().map { index, provider in
+        let records = store.enabledFirstPartyProvidersForDisplay().enumerated().map { index, provider in
             Record(
                 provider: provider,
                 name: store.metadata(for: provider).displayName,
                 source: store.sourceLabel(for: provider),
                 status: store.status(for: provider),
                 snapshot: store.presentationSnapshot(for: provider),
+                // Provider-specific by design: credits are stored only for the built-in Codex provider.
                 credits: provider == .codex ? store.credits : nil,
                 cost: store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot,
                 hasError: store.error(for: provider) != nil,
@@ -77,7 +78,7 @@ enum InkDashboardSnapshot {
 
     private static func providerPayload(_ record: Record) -> Provider {
         let snapshot = record.snapshot
-        let identity = snapshot?.identity(for: record.provider)
+        let identity = snapshot?.identity(for: record.provider.instanceID)
         let windows = self.windows(snapshot: snapshot, provider: record.provider)
         let status = record.status.map { value in
             let level = switch value.indicator {

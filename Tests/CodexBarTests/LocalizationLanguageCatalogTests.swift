@@ -31,6 +31,14 @@ struct LocalizationLanguageCatalogTests {
     ]
 
     @Test
+    func `catalan plugin sidebar uses the same terminology as its pane`() {
+        CodexBarLocalizationOverride.$appLanguage.withValue("ca") {
+            #expect(SettingsPane.plugins.title == "Connectors")
+            #expect(L("Provider Plugins") == "Connectors de proveïdor")
+        }
+    }
+
+    @Test
     func `app language catalog includes Ukrainian`() {
         #expect(AppLanguage.allCases.contains(.ukrainian))
         #expect(AppLanguage.ukrainian.rawValue == "uk")
@@ -230,6 +238,13 @@ struct LocalizationLanguageCatalogTests {
                 "terminal_app_subtitle": "Terminal usado pola acción Abrir terminal",
             ],
             "ca": [
+                "Projects": "Projectes",
+                "iCloud Sync": "Sincronització amb iCloud",
+                "Input": "Entrada",
+                "Cache write": "Escriptura a la memòria cau",
+                "Copy Image": "Copia la imatge",
+                "hooks_add_rule": "Afegeix una regla",
+                "menu_bar_layout_scope_help": "Editeu la disposició predeterminada o substituïu-la per a un proveïdor.",
                 "A managed Codex login is already running. Wait for it to finish before adding ":
                     "Ja hi ha un inici de sessió gestionat de Codex en curs. Espereu que acabi abans d'afegir ",
                 "%@: %@": "%@: %@",
@@ -313,6 +328,39 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
+    func `partial spend copy exists in every app catalog`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let catalogs = try FileManager.default.contentsOfDirectory(
+            at: resourcesURL,
+            includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+
+        #expect(catalogs.count == 23)
+        for catalogURL in catalogs {
+            let stringsURL = catalogURL.appendingPathComponent("Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: stringsURL) as? [String: String])
+            let estimate = try #require(catalog["Partial estimate"])
+            let breakdown = try #require(catalog["Partial model breakdown"])
+            let subscriptions = try #require(catalog["%d of %d subscriptions have spend"])
+            #expect(!estimate.isEmpty, "\(catalogURL.lastPathComponent)")
+            #expect(!breakdown.isEmpty, "\(catalogURL.lastPathComponent)")
+            #expect(!estimate.contains("%"), "\(catalogURL.lastPathComponent)")
+            #expect(!breakdown.contains("%"), "\(catalogURL.lastPathComponent)")
+            #expect(subscriptions.contains("%d"), "\(catalogURL.lastPathComponent)")
+            if catalogURL.lastPathComponent == "en.lproj" {
+                #expect(estimate == "Partial estimate")
+                #expect(breakdown == "Partial model breakdown")
+                #expect(subscriptions == "%d of %d subscriptions have spend")
+                #expect(String(format: subscriptions, 1, 3) == "1 of 3 subscriptions have spend")
+            }
+        }
+    }
+
+    @Test
     func `catalan localization matches the English catalog`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -370,9 +418,20 @@ struct LocalizationLanguageCatalogTests {
             let title = catalog["weekly_progress_work_days_title"]?.trimmingCharacters(in: .whitespacesAndNewlines)
             let subtitle = catalog["weekly_progress_work_days_subtitle"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
+            let appearanceKeys = [
+                "workday_tick_appearance_title",
+                "workday_tick_appearance_subtitle",
+                "workday_tick_appearance_hidden",
+                "workday_tick_appearance_subtle",
+                "workday_tick_appearance_high_contrast",
+            ]
 
             #expect(title?.isEmpty == false, "Missing workday title in \(catalogURL.lastPathComponent)")
             #expect(subtitle?.isEmpty == false, "Missing workday subtitle in \(catalogURL.lastPathComponent)")
+            for key in appearanceKeys {
+                let value = catalog[key]?.trimmingCharacters(in: .whitespacesAndNewlines)
+                #expect(value?.isEmpty == false, "Missing \(key) in \(catalogURL.lastPathComponent)")
+            }
         }
     }
 
@@ -510,12 +569,14 @@ struct LocalizationLanguageCatalogTests {
             "Deployment",
             "Email",
             "Endpoint",
+            "File",
             "Gemini Flash",
             "GitHub",
             "Google OAuth",
             "No",
             "Oasis-Token",
             "Password",
+            "Plugins",
             "Provider",
             "Token",
             "%@ %@",
@@ -539,7 +600,9 @@ struct LocalizationLanguageCatalogTests {
             "menu_bar_layout_token_account",
             "ory_session_…=…; csrftoken=…",
             "section_privacy",
+            "session_quota_estimate_value_format",
             "tab_menu",
+            "OpenCodex",
         ]
         let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
         #expect(unchanged == intentionallyUnchanged)

@@ -18,6 +18,10 @@ read_when:
 - Display → Menu Bar → Layout provides presets plus a token editor. Tokens can be clicked to append, dragged from the
   palette, reordered between one or two lines, dragged out, or removed with Delete. Layouts can be global or overridden
   per provider. Manual edits select the Custom preset.
+- All providers previews the default layout and lists enabled providers with saved overrides, even when an override
+  currently matches the default. Each “Use all-providers layout” action removes only that provider's override;
+  global edits preserve overrides, and disabled providers are left untouched. Before a default is first saved,
+  editing still starts from the representative provider's effective layout.
 - Small/Regular controls the token font scale. Tight/Regular controls status-item padding. Compact stacked uses two
   tightly spaced lines sized to fit the menu bar.
 
@@ -26,15 +30,27 @@ read_when:
 | Group | Tokens | Behavior |
 | --- | --- | --- |
 | Identity | Icon, Provider name, Account | Provider-scoped branding and identity |
-| Usage | Session %, Weekly %, Auto %, Usage bar | Window percentage or a compact three-glyph usage bar |
+| Usage | Session %, Weekly %, Scoped weekly %, Auto %, Usage bar | Window percentage or a compact three-glyph usage bar |
+| Usage | Session pace, Weekly pace, Auto pace | Signed pace delta for that window |
 | Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate |
-| Money | Cost today, Cost 30d | Local cost estimate for the selected period |
+| Money | Balance, Cost today, Cost 30d | OpenRouter credit balance, or local cost estimate for the selected period |
 | Structure | Separator dot, Space, Line break | Spacing and optional two-line composition |
 
-Auto % uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
+The pace tokens render the same delta the menu card shows as "in deficit"/"in reserve", in the compact signed form the
+pre-0.45 **Both** display mode used: `+11%` means usage runs that far ahead of the sustainable rate, `-8%` that far
+behind it, `0%` on pace. Each pace token reads its own window, so `Weekly pace` never borrows the session delta — unlike
+`Runs out`, which always estimates from the weekly (or automatic) lane. A pace token renders an en dash while pace is
+unavailable, including the first 3% of a window. The weekly menu-bar pace token may appear after 1% of its weekly
+window has elapsed; session, automatic, and Runs out tokens keep the 3% threshold. See [Pace tracking](#pace-tracking).
+
+Balance is available only for OpenRouter and renders the same remaining-credit value shown in its menu card. Auto %
+uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
 does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs
 derive their first layout from the prior style, display mode, metric, and reset settings; those legacy keys remain
 untouched for downgrade safety, while a saved token layout takes precedence.
+
+Scoped weekly % selects the most constrained active model-specific weekly carve-out. The editor keeps a stable,
+model-generic token label while the rendered menu-bar prefix and accessibility label follow the active model title.
 
 ## Icon rendering
 - 18×18 template image.
@@ -52,6 +68,7 @@ untouched for downgrade safety, while a saved token layout takes precedence.
 - Manual refresh updates the open card subtitle and persistent Refresh-row spinner in place. Repeated clicks share the
   active request, and the existing row geometry remains fixed through success or failure.
 - Codex credits can add a separate “Buy Credits…” menu action.
+- Claude capped Extra Usage follows the used/remaining fill preference; spending amounts and “% used” copy stay unchanged.
 - Codex OpenAI web extras: code review remaining and usage breakdown render when dashboard data is attached.
 - Token accounts: optional account switcher bar or stacked account cards (up to 6) when multiple manual tokens exist.
 - Provider storage usage is opt-in from Advanced settings. When enabled, overview rows and provider detail cards can show
@@ -70,7 +87,9 @@ The **Work days** setting selects the weekly pace model. **Automatic** uses Code
 When usage is in deficit, the right-hand label shows an estimated "Runs out in …" countdown. When usage will last until the reset, it shows "Lasts until reset".
 
 Pace is calculated for any provider window with enough reset timing data and is hidden when less than 3% of the
-window has elapsed.
+window has elapsed. The weekly menu-bar pace token is the one exception: it may appear after 1% of the weekly
+window has elapsed, including when Codex historical tracking predicts less than 1% usage. Session, automatic, and
+Runs out tokens remain hidden until 3% of their window has elapsed.
 
 ## Preferences notes
 - Advanced: “Disable Keychain access” turns off browser cookie import; paste Cookie headers manually in Providers.

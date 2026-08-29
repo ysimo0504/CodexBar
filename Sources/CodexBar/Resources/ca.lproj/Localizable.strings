@@ -1,13 +1,44 @@
 /* Catalan localization for CodexBar */
 
+/* iCloud Sync */
+"+ %d more" = "+ %d més";
+"Conversations (%@)" = "Converses (%@)";
+"Fast" = "Ràpid";
+"iCloud Sync" = "Sincronització amb iCloud";
+"Projects" = "Projectes";
+"Session %@" = "Sessió %@";
+"Std" = "Est.";
+"Show all (%d)" = "Mostra-ho tot (%d)";
+"Show less" = "Mostra menys";
+"Sync settings and providers across your Macs via iCloud" = "Sincronitza la configuració i els proveïdors entre els vostres Mac mitjançant iCloud";
+"Include API keys, cookies, and tokens" = "Inclou claus d'API, galetes i tokens";
+"Sync usage snapshots" = "Sincronitza les instantànies d'ús";
+"Show accounts from other Macs" = "Mostra els comptes d'altres Macs";
+"Requires a signed release build of CodexBar." = "Cal una versió de llançament signada de CodexBar.";
+"Sign in to iCloud in System Settings to enable sync." = "Inicieu la sessió d'iCloud a Configuració del Sistema per activar la sincronització.";
+"iCloud access is restricted on this Mac." = "iCloud access is restricted on this Mac.";
+"Sync is paused: another Mac uses a newer version of CodexBar. Update to resume." = "La sincronització està aturada: un altre Mac utilitza una versió més recent de CodexBar. Actualitzeu per reprendre-la.";
+"Last successful fetch" = "Última baixada correcta";
+"Last successful push" = "Última pujada correcta";
+"Never" = "Mai";
+"Macs" = "Macs";
+"No synced Macs yet." = "Encara no hi ha cap Mac sincronitzat.";
+"Secrets use iCloud end-to-end encryption via encryptedValues. Hooks and machine-local paths never sync." = "Els secrets utilitzen el xifratge d'extrem a extrem d'iCloud (encryptedValues). Els hooks i les rutes locals del Mac mai no se sincronitzen.";
+"Last seen %@" = "Última connexió: %@";
+"This Mac" = "Aquest Mac";
+"another Mac" = "un altre Mac";
+"%dm ago" = "fa %dm";
+"%dh ago" = "fa %dh";
+"%dd ago" = "fa %dd";
+
 "ollama_safari_cookie_access_hint" = "Les galetes de Safari necessiten accés complet al disc per a CodexBar (Configuració del Sistema > Privadesa i seguretat).";
-"ollama_browser_cookie_decryption_denied" = "S'ha denegat el desxifratge de les galetes de %@ al Clauer; torneu-ho a provar amb una actualització manual.";
+"ollama_browser_cookie_decryption_denied" = "S'ha denegat el desxifratge de les galetes de %@ al Clauer. Obriu la targeta del proveïdor i feu clic a Actualitza (⌘R) per tornar a sol·licitar accés al Clauer.";
 "ollama_browser_cookie_decryption_disabled" = "El desxifratge de les galetes de %@ està desactivat a CodexBar; activeu l'accés al Clauer i actualitzeu.";
 
 " providers" = " proveïdors";
 "(System)" = "(Sistema)";
-"30d" = "30 d";
-"7d" = "7 d";
+"30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Ja hi ha un inici de sessió gestionat de Codex en curs. Espereu que acabi abans d'afegir ";
 "API key" = "Clau d'API";
 "API region" = "Regió de l'API";
@@ -414,6 +445,9 @@
 "section_agent_sessions" = "Sessions d'agents";
 "language_title" = "Idioma";
 "language_subtitle" = "Canvia l'idioma de la interfície. Cal reiniciar l'app perquè s'apliqui completament.";
+"currency_title" = "Moneda preferida";
+"currency_subtitle" = "Moneda per a estimacions de cost i despeses. Utilitza tipus de canvi actualitzats diàriament.";
+"currency_auto" = "Automàtic (segons el proveïdor / USD)";
 "language_system" = "Sistema";
 "language_english" = "English";
 "language_spanish" = "Español";
@@ -457,6 +491,10 @@
 "quota_depleted_title" = "Quota esgotada i restablerta";
 "quota_warning_notifications_subtitle" = "Avisa quan la quota restant de sessió o setmanal baixa per sota dels llindars configurats.";
 "threshold_warnings_title" = "Avisos de llindar";
+"provider_accent_color_title" = "Color d'accent";
+"provider_accent_color_footer" = "Estableix el color de les barres d'ús, els gràfics i la pestanya del selector d'aquest proveïdor.";
+"provider_accent_color_hex_label" = "Valor de color hexadecimal";
+"provider_accent_color_reset" = "Usa el valor predeterminat";
 "quota_warnings_title" = "Avisos de quota";
 "quota_warning_session" = "sessió";
 "quota_warning_session_capitalized" = "Sessió";
@@ -496,7 +534,7 @@
 /* Hooks Pane */
 "hooks_enable_title" = "Activa els hooks";
 "hooks_enable_subtitle" = "Executa ordres externes quan es produeixen esdeveniments de quota o de proveïdor.";
-"hooks_trust_warning" = "Els hooks poden executar ordres locals al teu Mac. Configura només ordres en què confiïs.";
+"hooks_trust_warning" = "Els hooks poden executar ordres locals al vostre Mac. Configureu només ordres de confiança.";
 "hooks_rules_header" = "Regles";
 "hooks_empty" = "No hi ha cap hook configurat.";
 "hooks_add_rule" = "Afegeix una regla";
@@ -563,12 +601,19 @@
 "display_mode_subtitle" = "Trieu què es mostra a la barra de menús (Ritme mostra l'ús respecte al previst).";
 "show_quota_warning_markers_title" = "Mostreu els marcadors d'avís de quota";
 "show_quota_warning_markers_subtitle" = "Dibuixa marques de llindar a les barres d'ús quan hi ha avisos de quota configurats.";
+"show_pace_title" = "Mostra el ritme";
+"show_pace_subtitle" = "Mostra la franja d'avançament o retard i el text de previsió a les barres d'ús.";
 "weekly_progress_work_days_title" = "Dies laborables del progrés setmanal";
 "weekly_progress_work_days_subtitle" = "Definiu els dies laborables per als marcadors de les barres d'ús setmanal i els càlculs de ritme.";
+"workday_tick_appearance_title" = "Aparença de les marques dels dies laborables";
+"workday_tick_appearance_subtitle" = "Trieu com es mostren els límits dels dies laborables a les barres d'ús setmanal.";
+"workday_tick_appearance_hidden" = "Ocultes";
+"workday_tick_appearance_subtle" = "Subtils";
+"workday_tick_appearance_high_contrast" = "Alt contrast";
 "show_provider_changelog_links_title" = "Mostreu els enllaços al registre de canvis del proveïdor";
 "show_provider_changelog_links_subtitle" = "Afegiu al menú enllaços a les notes de versió dels proveïdors compatibles basats en CLI.";
 "show_credits_extra_usage_title" = "Mostreu crèdits + ús addicional";
-"show_credits_extra_usage_subtitle" = "Mostreu les seccions de Crèdits de Codex i Ús addicional de Claude al menú.";
+"show_credits_extra_usage_subtitle" = "Mostra els crèdits i l'ús addicional dels proveïdors compatibles.";
 "multi_account_layout_title" = "Disposició multicompte";
 "multi_account_layout_subtitle" = "Trieu el canvi de compte segmentat o targetes de compte apilades.";
 "multi_account_layout_segmented" = "Segmentat";
@@ -580,7 +625,7 @@
 "overview_rows_follow_order" = "Les files del Resum sempre segueixen l'ordre dels proveïdors.";
 "overview_no_providers_selected" = "No hi ha cap proveïdor seleccionat";
 "agent_sessions_title" = "Sessions d'agents";
-"agent_sessions_subtitle" = "Mostreu al menú les sessions locals i descobertes per SSH de Codex i Claude Code.";
+"agent_sessions_subtitle" = "Mostra al menú les sessions locals i descobertes per SSH de Codex i Claude Code.";
 "agent_sessions_hosts_title" = "Amfitrions SSH addicionals";
 "agent_sessions_footer" = "Els Mac de la vostra tailnet es descobreixen automàticament. Les sessions locals s'actualitzen cada 30 segons; els amfitrions remots, cada 60 segons i quan s'obre el menú.";
 "agent_session_labels_title" = "Etiquetes de sessió";
@@ -594,6 +639,8 @@
 "section_keyboard_shortcut" = "Drecera de teclat";
 "open_menu_shortcut_title" = "Obriu el menú";
 "open_menu_shortcut_subtitle" = "Obriu el menú de la barra de menús des de qualsevol lloc.";
+"record_shortcut" = "Enregistra la drecera";
+"press_shortcut" = "Premeu la drecera";
 "install_cli" = "Instal·la la CLI";
 "install_cli_subtitle" = "Creeu un enllaç simbòlic de CodexBarCLI a /usr/local/bin i /opt/homebrew/bin com a codexbar.";
 "cli_not_found" = "No s'ha trobat CodexBarCLI al paquet de l'app.";
@@ -610,6 +657,15 @@
 "keychain_access_caption" = "Desactiveu totes les lectures i escriptures del Clauer. Feu-ho si macOS continua mostrant sol·licituds de «Chrome/Brave/Edge Safe Storage» fins i tot després de triar «Permet sempre». La importació de galetes del navegador no estarà disponible mentre aquesta opció estigui activada; enganxeu manualment les capçaleres Cookie a Proveïdors. L'OAuth de Claude/Codex mitjançant la CLI continuarà funcionant.";
 "disable_keychain_access_title" = "Desactiveu l'accés al Clauer";
 "disable_keychain_access_subtitle" = "Impedeix qualsevol accés al Clauer mentre estigui activat.";
+"Re-authenticate" = "Torna a autenticar";
+"kiro_reauthenticate_title" = "Inici de sessió de Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Executa «kiro-cli login» per renovar la sessió quan hagi caducat.";
+"Kiro CLI not found" = "No s'ha trobat Kiro CLI";
+"Install kiro-cli and try again." = "Instal·leu kiro-cli i torneu-ho a provar.";
+"Could not start kiro-cli login" = "No s'ha pogut iniciar kiro-cli login";
+"Kiro login timed out" = "S'ha esgotat el temps d'inici de sessió de Kiro";
+"kiro-cli login exited with status %d." = "kiro-cli login ha finalitzat amb l'estat %d.";
+"Kiro login failed" = "Ha fallat l'inici de sessió de Kiro";
 
 /* About Pane */
 "about_tagline" = "Que els vostres tokens no s'esgotin mai: mantingueu els límits dels vostres agents a la vista.";
@@ -624,6 +680,8 @@
 "copyright" = "© 2026 Peter Steinberger. Llicència MIT.";
 
 /* Debug Pane */
+"use_javascriptcore_plugin_engine" = "Utilitza JavaScriptCore per als connectors de proveïdor";
+"use_javascriptcore_plugin_engine_subtitle" = "Només com a reversió de compatibilitat. Reinicieu CodexBar per aplicar-ho; CODEXBAR_PLUGIN_ENGINE substitueix aquest ajust.";
 "section_logging" = "Registre";
 "enable_file_logging" = "Activeu el registre en fitxer";
 "enable_file_logging_subtitle" = "Escriu els registres a %@ per a la depuració.";
@@ -721,18 +779,18 @@
 "refresh_30min" = "30 min";
 "refresh_adaptive" = "Adaptatiu";
 "refresh_adaptive_agent_aware" = "Adaptatiu (activitat dels agents)";
-"adaptive_activity_consent_title" = "Voleu permetre l’actualització segons l’activitat?";
-"adaptive_activity_consent_message" = "El mode Adaptatiu segons l’activitat dels agents pot inspeccionar la llista de processos locals en execució, incloses les línies d’ordres, per identificar Codex i Claude, i llegir les metadades de sessions conegudes cada 30 segons mentre programeu. Amb Agent Sessions desactivat, CodexBar només conserva a la memòria l’hora de l’activitat més recent i descarta les rutes i identitats de les sessions. Aquestes dades no s’envien enlloc, i la detecció remota i SSH continuen desactivats. Si ho rebutgeu, CodexBar tornarà al mode Adaptatiu normal sense exploracions d’activitat local.";
-"adaptive_activity_consent_allow" = "Permeteu l’activitat local";
-"adaptive_activity_consent_decline" = "Utilitzeu l’Adaptatiu normal";
+"adaptive_activity_consent_title" = "Voleu permetre l'actualització segons l'activitat?";
+"adaptive_activity_consent_message" = "El mode Adaptatiu segons l'activitat dels agents pot inspeccionar la llista de processos locals en execució, incloses les línies d'ordres, per identificar Codex i Claude, i llegir les metadades de sessions conegudes cada 30 segons mentre programeu. Amb Agent Sessions desactivat, CodexBar només conserva a la memòria l'hora de l'activitat més recent i descarta les rutes i identitats de les sessions. Aquestes dades no s'envien enlloc, i la detecció remota i SSH continuen desactivats. Si ho rebutgeu, CodexBar tornarà al mode Adaptatiu normal sense exploracions d'activitat local.";
+"adaptive_activity_consent_allow" = "Permeteu l'activitat local";
+"adaptive_activity_consent_decline" = "Utilitzeu l'Adaptatiu normal";
 
 /* Additional keys */
 "not_found" = "No trobat";
 
 /* Cost estimation */
 "cost_estimate_hint" = "Estimat a partir de registres locals · pot diferir de la vostra factura";
-"codex_api_estimate_hint" = "Estimat a partir de l’ús de tokens · no és una factura de subscripció";
-"cost_data_explanation" = "Els costos poden ser comunicats pel proveïdor o estimats a partir de l’ús de tokens amb preus públics de l’API. Les estimacions no són càrrecs de subscripció.";
+"codex_api_estimate_hint" = "Estimat a partir de l'ús de tokens · no és una factura de subscripció";
+"cost_data_explanation" = "Els costos poden ser comunicats pel proveïdor o estimats a partir de l'ús de tokens amb preus públics de l'API. Les estimacions no són càrrecs de subscripció.";
 
 /* Popup panels */
 "No usage configured." = "No hi ha cap ús configurat.";
@@ -746,6 +804,7 @@
 "Sonnet" = "Sonnet";
 "Auth" = "Autenticació";
 "Overages" = "Excedents";
+"Overage" = "Excedent";
 "Activity" = "Activitat";
 "Copied" = "Copiat";
 "Copy error" = "Error en copiar";
@@ -756,6 +815,7 @@
 "Balance updates in near-real time (up to 5 min lag)" = "El saldo s'actualitza gairebé en temps real (fins a 5 min de retard)";
 "Daily billing data finalizes at 07:00 UTC" = "Les dades diàries de facturació es tanquen a les 07:00 UTC";
 "%@ of %@ credits left" = "Queden %@ de %@ crèdits";
+"of %@" = "de %@";
 "%@ of %@ bonus credits left" = "Queden %@ de %@ crèdits de bonificació";
 "%@ / %@ (%@ remaining)" = "%@ / %@ (%@ restants)";
 "%@/%@ left" = "%@/%@ restant";
@@ -767,6 +827,7 @@
 "Full in ~1 regen" = "Ple en ~1 regeneració";
 "Full in ~%.0f regens" = "Ple en ~%.0f regeneracions";
 "Overage usage" = "Ús excedent";
+"Overage credits left" = "Crèdits excedents restants";
 "Overage cost" = "Cost excedent";
 "credits" = "crèdits";
 "Zen balance" = "Saldo Zen";
@@ -804,8 +865,8 @@
 "Today cash" = "Efectiu d'avui";
 "DeepSeek 30 day token usage trend" = "Tendència d'ús de tokens de 30 dies de DeepSeek";
 "Detailed usage unavailable." = "L'ús detallat no està disponible.";
-"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Inicia la sessió a DeepSeek Platform al Chrome per veure l'ús detallat.";
-"Select a DeepSeek Chrome profile in Settings." = "Selecciona un perfil de Chrome de DeepSeek a Configuració.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Inicieu la sessió a DeepSeek Platform al Chrome per veure l'ús detallat.";
+"Select a DeepSeek Chrome profile in Settings." = "Seleccioneu un perfil de Chrome de DeepSeek a Configuració.";
 "DeepSeek this month token usage trend" = "Tendència d'ús de tokens de DeepSeek aquest mes";
 "Chrome profile" = "Perfil de Chrome";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Tria quina sessió iniciada de DeepSeek Platform proporciona l'ús detallat.";
@@ -1114,7 +1175,7 @@
 "Last 30 days: %@" = "Últims 30 dies: %@";
 "Last 30 days: %@ · %@ tokens" = "Últims 30 dies: %@ · %@ tokens";
 "Lasts until reset" = "Dura fins al reinici";
-"1.5× headroom" = "marge d’1,5×";
+"1.5× headroom" = "marge d'1,5×";
 "Login with Google" = "Inicieu sessió amb Google";
 "login_success_notification_body" = "Podeu tornar a l'app; l'autenticació ha finalitzat.";
 "login_success_notification_title" = "Inici de sessió de %@ correcte";
@@ -1219,7 +1280,7 @@
 "usage_percent_suffix_used" = "usat";
 "Weekly" = "Setmanal";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "No s'ha trobat el token d'API de z.ai. Definiu apiKey a ~/.codexbar/config.json o Z_AI_API_KEY.";
-"≈ %d%% run-out risk" = "≈ %d%% risc d'esgotament";
+"(%d%% risk)" = "(%d%% risc d'esgotament)";
 
 /* Settings sidebar redesign */
 "Enable" = "Activa";
@@ -1233,19 +1294,21 @@
 "section_links" = "Enllaços";
 "Show Codex Spark usage" = "Mostreu l'ús de Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Mostreu les files de quota de Codex Spark al menú i a la previsualització del proveïdor. Cal activar «Mostreu crèdits + ús addicional» a la configuració de Pantalla.";
+"Show Daily Routines usage" = "Mostreu l'ús de Rutines diàries";
+"Shows the Daily Routines quota row in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Mostreu la fila de quota de Rutines diàries al menú i a la previsualització del proveïdor. Cal activar «Mostreu crèdits + ús addicional» a la configuració de Pantalla.";
 "Scroll to see more models" = "Desplaceu-vos per veure més models";
 /* Shareable usage card */
 "Copy Image" = "Copia la imatge";
 "Copy Stats" = "Copia les estadístiques";
-"Could not copy image" = "No s’ha pogut copiar la imatge";
+"Could not copy image" = "No s'ha pogut copiar la imatge";
 "Image copied" = "Imatge copiada";
 "Image saved" = "Imatge desada";
 "Nothing is uploaded. This image is created on your Mac." = "No es puja res. Aquesta imatge es crea al Mac.";
 "Save..." = "Desa...";
-"Share AI Usage" = "Comparteix l’ús de la IA";
+"Share AI Usage" = "Comparteix l'ús de la IA";
 "Share Stats…" = "Comparteix les estadístiques…";
 "Stats copied" = "Estadístiques copiades";
-"Finish switching to a different Cursor account in your browser, then try again." = "Acabeu de canviar a un compte de Cursor diferent al navegador i torneu-ho a provar.";
+"Finish switching to a different Cursor account in your browser, then try again." = "Acabeu de canviar a un compte de Cursor diferent des del navegador i torneu-ho a provar.";
 "Timed out waiting for Cursor account switch. %@" = "S'ha esgotat el temps d'espera del canvi de compte de Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "S'ha esgotat el temps d'espera del canvi de compte de Cursor. %@ Últim error: %@";
 
@@ -1254,15 +1317,18 @@
 "Usage & Spend" = "Ús i despesa";
 "Local estimated cost history across supported providers." = "Historial local de costos estimats dels proveïdors compatibles.";
 "Time range" = "Interval de temps";
-"Track costs" = "Fes seguiment dels costos";
+"Track costs" = "Seguiment de costos";
 "Cost tracking is off" = "El seguiment de costos està desactivat";
-"Turn on Track costs to build local estimates." = "Activa «Fes seguiment dels costos» per crear estimacions locals.";
+"Turn on Track costs to build local estimates." = "Activeu «Seguiment de costos» per crear estimacions locals.";
 "No local cost history yet" = "Encara no hi ha historial local de costos";
-"Turn on cost tracking or refresh after using a supported provider." = "Activa el seguiment de costos o actualitza després d’utilitzar un proveïdor compatible.";
+"Turn on cost tracking or refresh after using a supported provider." = "Activeu el seguiment de costos o actualitzeu després d'utilitzar un proveïdor compatible.";
 "Refresh failures" = "Actualitzacions fallides";
-"Native currencies stay separate; Codex account rows exclude Pi session history." = "Les monedes originals es mantenen separades; les files de comptes de Codex exclouen l’historial de sessions de Pi.";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Les monedes originals es mantenen separades; les files de comptes de Codex exclouen l'historial de sessions de Pi.";
 "Spend unavailable" = "Despesa no disponible";
 "Model breakdown unavailable" = "Desglossament per model no disponible";
+"Partial estimate" = "Estimació parcial";
+"Partial model breakdown" = "Desglossament de models parcial";
+"%d of %d subscriptions have spend" = "%d de %d subscripcions tenen despesa";
 "Local estimated history" = "Historial local estimat";
 "Coverage" = "Cobertura";
 "Estimated spend" = "Despesa estimada";
@@ -1271,24 +1337,33 @@
 "By subscription" = "Per subscripció";
 "No model-level history" = "Sense historial per model";
 "Daily estimated spend" = "Despesa diària estimada";
+"Hourly estimated spend" = "Despesa horària estimada";
+"Hour" = "Hora";
+"%d hours of usage data across %d services" = "%d hores de dades d'ús en %d serveis";
+"1 hour of usage data across 1 service" = "1 hora de dades d'ús en 1 servei";
+"%d hours of usage data across 1 service" = "%d hores de dades d'ús en 1 servei";
+"1 hour of usage data across %d services" = "1 hora de dades d'ús en %d serveis";
 "≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d finestres completes de 5 h de quota setmanal · %d finestres fins al reinici";
 "Weekly cannot run out before reset at this pace" = "La quota setmanal no es pot esgotar abans del reinici a aquest ritme";
 "Weekly can run out ≈%d windows early" = "La quota setmanal es pot esgotar ≈%d finestres abans";
-"Estimated: %@" = "Estimació: %@";
+"Estimated: %@" = "Est.: %@";
+"session_quota_estimate_value_format" = "%1$@ %2$@";
+"session quota" = "quota de sessió";
+"session quotas" = "quotes de sessió";
 "Coding Plan" = "Pla de programació";
 "Agent Plan" = "Pla d'agent";
 "Team" = "Equip";
 
 /* Menu bar layout editor */
 "menu_bar_layout_title" = "Disposició";
-"menu_bar_layout_footer" = "Arrossega les fitxes per ordenar la barra de menús. Fes clic en una fitxa per afegir-la; selecciona una fitxa col·locada i prem Suprimir per eliminar-la.";
+"menu_bar_layout_footer" = "Arrossegueu les fitxes per ordenar la barra de menús. Feu clic en una fitxa per afegir-la; seleccioneu una fitxa col·locada i premeu Supr per eliminar-la.";
 "menu_bar_layout_group_identity" = "Identitat";
 "menu_bar_layout_group_usage" = "Ús";
 "menu_bar_layout_group_time" = "Temps";
 "menu_bar_layout_group_money" = "Cost";
 "menu_bar_layout_group_structure" = "Estructura";
 "menu_bar_layout_scope_all" = "Tots els proveïdors";
-"menu_bar_layout_scope_help" = "Edita la disposició predeterminada o substitueix-la per a un proveïdor.";
+"menu_bar_layout_scope_help" = "Editeu la disposició predeterminada o substituïu-la per a un proveïdor.";
 "menu_bar_layout_use_all" = "Usa la disposició de tots els proveïdors";
 "menu_bar_layout_preset" = "Predefinit de disposició";
 "menu_bar_layout_preset_icon_percent" = "Icona i percentatge";
@@ -1297,33 +1372,42 @@
 "menu_bar_layout_preset_compact_stacked" = "Apilat compacte";
 "menu_bar_layout_preset_custom" = "Personalitzat";
 "menu_bar_layout_live_preview" = "Previsualització en directe";
+"menu_bar_layout_default_preview" = "Previsualització de la disposició per defecte";
+"menu_bar_layout_overrides_notice" = "Aquests proveïdors activats utilitzen les seves pròpies disposicions desades:";
+"menu_bar_layout_use_all_accessibility" = "%@: Usa la disposició de tots els proveïdors";
 "menu_bar_layout_strip" = "Franja de la barra de menús";
 "menu_bar_layout_remove_line_break" = "Elimina el salt de línia";
-"menu_bar_layout_chip_hint" = "Selecciona, arrossega per reordenar o usa l’acció Elimina.";
-"menu_bar_layout_palette_hint" = "Fes clic per afegir o arrossega a la disposició.";
-"menu_bar_layout_empty_line" = "Deixa una fitxa aquí";
+"menu_bar_layout_chip_hint" = "Seleccioneu, arrossegueu per reordenar o utilitzeu l'acció Elimineu.";
+"menu_bar_layout_palette_hint" = "Feu clic per afegir o arrossegueu a la disposició.";
+"menu_bar_layout_empty_line" = "Deixeu una fitxa aquí";
 "menu_bar_layout_line" = "Línia %d";
-"menu_bar_layout_drag_remove" = "Arrossega aquí per eliminar";
+"menu_bar_layout_drag_remove" = "Arrossegueu aquí per eliminar";
+"menu_bar_layout_remove_selected" = "Elimina la selecció";
 "menu_bar_layout_size" = "Mida";
 "menu_bar_layout_size_small" = "Petita";
 "menu_bar_layout_size_regular" = "Normal";
 "menu_bar_layout_gap" = "Espaiat";
 "menu_bar_layout_gap_tight" = "Estret";
 "menu_bar_layout_gap_regular" = "Normal";
-"menu_bar_layout_keyboard_hint" = "Suprimir elimina la fitxa seleccionada";
+"menu_bar_layout_vertical_adjustment" = "Ajust vertical";
+"menu_bar_layout_keyboard_hint" = "La tecla Supr elimina la fitxa seleccionada";
 "menu_bar_layout_sample_account" = "compte";
-"menu_bar_layout_sample_runs_out" = "s’esgota div.";
+"menu_bar_layout_sample_runs_out" = "s'esgota dv.";
 "menu_bar_layout_token_icon" = "Icona";
 "menu_bar_layout_token_provider" = "Nom del proveïdor";
 "menu_bar_layout_token_account" = "Compte";
 "menu_bar_layout_token_session" = "Sessió %";
 "menu_bar_layout_token_weekly" = "Setmanal %";
+"menu_bar_layout_token_scoped_weekly" = "Setmanal amb àmbit %";
 "menu_bar_layout_token_auto" = "% automàtic";
-"menu_bar_layout_token_bar" = "Barra d’ús";
-"menu_bar_layout_token_resets_in" = "Es reinicia d’aquí a";
+"menu_bar_layout_token_session_pace" = "Ritme de sessió";
+"menu_bar_layout_token_weekly_pace" = "Ritme setmanal";
+"menu_bar_layout_token_auto_pace" = "Ritme automàtic";
+"menu_bar_layout_token_bar" = "Barra d'ús";
+"menu_bar_layout_token_resets_in" = "Es reinicia d'aquí a";
 "menu_bar_layout_token_reset_at" = "Reinici a";
-"menu_bar_layout_token_runs_out" = "S’esgota";
-"menu_bar_layout_token_cost_today" = "Cost d’avui";
+"menu_bar_layout_token_runs_out" = "S'esgota";
+"menu_bar_layout_token_cost_today" = "Cost d'avui";
 "menu_bar_layout_token_cost_30d" = "Cost de 30 dies";
 "menu_bar_layout_token_space" = "Espai";
 "menu_bar_layout_token_line_break" = "Salt de línia";
@@ -1336,11 +1420,122 @@
 "Account unavailable" = "Compte: No disponible";
 "%@ unavailable" = "%@: No disponible";
 "%@ %@" = "%@ %@";
-"Usage bar unavailable" = "Barra d’ús: No disponible";
-"Usage bar, %d of 3 filled" = "Barra d’ús: %d/3 plens";
-"Reset countdown unavailable" = "Es reinicia d’aquí a: No disponible";
+"Usage bar unavailable" = "Barra d'ús: No disponible";
+"Usage bar, %d of 3 filled" = "Barra d'ús: %d/3 plens";
+"Reset countdown unavailable" = "Es reinicia d'aquí a: No disponible";
 "Reset time unavailable" = "Reinici a: No disponible";
-"Run-out estimate unavailable" = "S’esgota: No disponible";
-"Cost today unavailable" = "Cost d’avui: No disponible";
+"Run-out estimate unavailable" = "S'esgota: No disponible";
+"Cost today unavailable" = "Cost d'avui: No disponible";
 "30-day cost unavailable" = "Cost de 30 dies: No disponible";
 "Resets" = "Reinicis";
+"Finish now" = "Finalitza ara";
+"Continue in background" = "Continua en segon pla";
+
+"Cumulative" = "Acumulat";
+"Token activity" = "Activitat de tokens";
+"View" = "Vista";
+"in the last year" = "l'últim any";
+"No activity in the last 12 months" = "Sense activitat en els últims 12 mesos";
+"Each column = 1 week" = "Cada columna = 1 setmana";
+"Running total" = "Total acumulat";
+"Less" = "Menys";
+"More" = "Més";
+
+/* Provider Plugins */
+"Plugins" = "Connectors";
+"Install…" = "Instal·la…";
+"Install plugin" = "Instal·la el connector";
+"Copies a JavaScript or TypeScript file into the plugins directory." = "Copia un fitxer de JavaScript o TypeScript al directori de connectors.";
+"Show in Finder" = "Mostra al Finder";
+"Plugins directory" = "Directori de connectors";
+"Provider Plugins" = "Connectors de proveïdor";
+"Plugins are local JavaScript or TypeScript files. Network and cookie access require approval." = "Els connectors són fitxers locals de JavaScript o TypeScript. L'accés a la xarxa i a les galetes requereix aprovació.";
+"No Plugins Installed" = "No hi ha cap connector instal·lat";
+"Drop a .js or .ts file into the plugins directory, or choose Install…" = "Arrossegueu un fitxer .js o .ts al directori de connectors, o trieu «Instal·la…».";
+"Delete Plugin?" = "Voleu eliminar el connector?";
+"Delete" = "Elimina";
+"This removes the plugin file, transpile cache, approval, saved settings and secrets, and history." = "Això elimina el fitxer del connector, la memòria cau de transpilació, l'aprovació, la configuració desada, els secrets desats i l'historial.";
+"Plugin Error" = "Error del connector";
+"Needs approval" = "Requereix aprovació";
+"File" = "Fitxer";
+"Origins" = "Orígens";
+"Configure endpoint settings" = "Configura els paràmetres dels endpoints";
+"Capabilities" = "Capacitats";
+"Network" = "Xarxa";
+"Cookie domains" = "Dominis de galetes";
+"Approve…" = "Aprova…";
+"Delete…" = "Elimina…";
+"Unknown validation error" = "Error de validació desconegut";
+"Approve Plugin" = "Aprova el connector";
+"Install and Approve Plugin" = "Instal·la i aprova el connector";
+"Network authority" = "Permisos de xarxa";
+"Auth: %@" = "Autenticació: %@";
+"Capabilities: %@" = "Capacitats: %@";
+"network" = "xarxa";
+"Secrets: %@" = "Secrets: %@";
+"none" = "cap";
+"Cookie domains: %@" = "Dominis de galetes: %@";
+"Type %@ to confirm" = "Escriviu %@ per confirmar";
+"Enter every endpoint setting to review the exact network origins." = "Introduïu tots els paràmetres dels endpoints per revisar els orígens de xarxa exactes.";
+"Approve" = "Aprova";
+"Install" = "Instal·la";
+"5-hour usage" = "Ús de 5 hores";
+"7-day usage" = "Ús de 7 dies";
+"Total usage" = "Ús total";
+"claude_oauth_keychain_access_revoked" = "L'accés al clauer de Claude s'ha revocat per la rotació del token de Claude Code. Feu clic a Actualitza per tornar a concedir l'accés, o canvieu l'origen d'ús de Claude a CLI/Web.";
+"claude_showing_last_known_usage" = "Es mostra l'últim ús conegut capturat %@.";
+/* Spend dashboard cost analysis */
+"90d" = "90d";
+"Input" = "Entrada";
+"Output" = "Sortida";
+"Cache write" = "Escriptura a la memòria cau";
+"Reasoning" = "Raonament";
+"Sessions" = "Sessions";
+"Plan metered" = "Mesurat al pla";
+"List-price equivalent" = "Equivalent a preu de llista";
+"Metered and list-price" = "Mesurat al pla i preu de llista";
+"List-price equivalent — not a billing receipt." = "Equivalent a preu de llista; no és un rebut de facturació.";
+"Priced" = "Amb preu";
+"Unpriced" = "Sense preu";
+"Unmetered" = "No mesurat";
+"Estimated" = "Estimat";
+"Other models" = "Altres models";
+"Include OpenCodex usage logs" = "Inclou els registres d'ús d'OpenCodex";
+"Hide native Codex when OpenCodex is present" = "Amaga el Codex natiu quan hi ha OpenCodex";
+"Export JSON" = "Exporta JSON";
+"Copy JSON" = "Copia JSON";
+"Sources" = "Fonts";
+"OpenCodex" = "OpenCodex";
+
+"menu_bar_layout_token_conditional" = "Condicional";
+"menu_bar_layout_group_conditionals" = "Condicionals";
+"menu_bar_layout_conditional_add" = "Condicional nou";
+"menu_bar_layout_conditional_edit" = "Edita el condicional";
+"menu_bar_layout_conditional_remove" = "Elimina de la biblioteca";
+"menu_bar_layout_conditional_save" = "Desa";
+"menu_bar_layout_conditional_if" = "Si";
+"menu_bar_layout_conditional_then" = "Mostra llavors";
+"menu_bar_layout_conditional_else" = "Mostra en cas contrari";
+"menu_bar_layout_conditional_and" = "i";
+"menu_bar_layout_conditional_none" = "Encara no hi ha condicionals";
+"menu_bar_layout_conditional_hide" = "Amaga";
+"menu_bar_layout_conditional_name" = "Nom";
+"menu_bar_layout_conditional_name_placeholder" = "p. ex. Comprovació de la sessió";
+"menu_bar_layout_conditional_name_error" = "Introdueix un nom únic";
+"menu_bar_layout_conditional_used" = "utilitzat";
+"menu_bar_layout_conditional_remaining" = "restant";
+"menu_bar_layout_conditional_metric_resets_in" = "%@ es reinicia en";
+"menu_bar_layout_conditional_metric_scoped_weekly" = "Setmanal amb àmbit";
+"menu_bar_layout_conditional_duplicate" = "Duplica";
+"menu_bar_layout_conditional_or" = "o";
+"menu_bar_layout_conditional_add_condition" = "Afegeix una condició";
+"menu_bar_layout_conditional_summary" = "Si %1$@ llavors %2$@ en cas contrari %3$@";
+"menu_bar_layout_conditional_copy_name" = "%@ (còpia)";
+"menu_bar_layout_conditional_copy_name_numbered" = "%1$@ (còpia %2$d)";
+"menu_bar_layout_conditional_unavailable" = "Condicional no disponible";
+"menu_bar_layout_conditional_default_session_busy" = "Sessió per damunt del 50% utilitzada";
+"menu_bar_layout_conditional_default_weekly_high" = "Setmanal per damunt del 90% utilitzada";
+"menu_bar_layout_conditional_default_session_spent" = "Sessió gairebé esgotada";
+"menu_bar_layout_conditional_default_either_high" = "Sessió o setmana en nivell alt";
+"menu_bar_layout_conditional_default_scoped_weekly" = "Setmanal amb àmbit per damunt del 60%";
+"Spending cap, not balance" = "Límit de despesa, no saldo";

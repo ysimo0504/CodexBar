@@ -75,9 +75,12 @@ envelope. CodexBar does not need
 - Require `schemaVersion == 1`; reject unknown versions and partial top-level shapes.
 - Bound runtime and stdout, terminate on timeout, and retain the last successful snapshot with a stale marker.
 - Parse only slot number, active state, usage status, 5-hour/7-day percentages, optional `usage.scoped` display names
-  and percentages, and reset timestamps. Ignore malformed or unknown scoped rows without discarding valid account-wide
-  windows.
-- Treat email as display-only sensitive data. Never log or persist it. Respect Hide Personal Info.
+  and percentages, reset timestamps, display-only `organizationName` (always present, may be empty), and optional
+  display-only `alias` when non-empty. Ignore malformed or unknown scoped rows without discarding valid account-wide
+  windows. Unknown extra JSON fields remain ignored. Empty `organizationName` is not an error; `alias` is not required.
+- Treat email, organization name, and alias as display-only. Never log or persist them. Respect Hide Personal Info.
+  When two or more slots share an email, disambiguate with `email · organizationName` or `email · Account N`; a
+  user-chosen alias wins. Unique emails stay email-only.
 - Use the source-issued numeric slot for identity (`claude-swap:<slot>`), not email or credential-derived values.
 - CodexBar never reads `claude-swap` storage, Claude Code storage, environment credentials, or Keychain entries. The
   subprocess remains solely responsible for its own credential access. The adapter copies only allow-listed
@@ -156,8 +159,8 @@ Icons semantics must be decided before implementation.
 
 The mock above shows the recommended mode and its Merge Icons conflict. It is intentionally a decision artifact, not
 an implementation screenshot. The following packaged synthetic-account proof verifies the bounded current behavior:
-the account action is now named “Sign in with Claude Code…” and no longer claims it will add a durable CodexBar account.
-No real credential, browser session, or provider call was used.
+the separate ambient OAuth action is named “Sign in with Claude Code…”, while inactive claude-swap cards retain their
+explicit “Switch Account…” action. No real credential, browser session, or provider call was used.
 
 ![Packaged synthetic Claude sign-in proof](screenshots/claude-sign-in-synthetic-proof.png)
 

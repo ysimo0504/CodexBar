@@ -381,7 +381,8 @@ struct UsageStoreDisabledProviderCleanupTests {
             await gate.suspend()
             return (
                 snapshot: Self.tokenSnapshot(tokens: 710, historyDays: historyDays, updatedAt: now),
-                lastRefreshAt: now)
+                lastRefreshAt: now,
+                staleSnapshotUpdatedAt: nil)
         }
 
         store.hydrateCachedTokenSnapshots()
@@ -651,11 +652,16 @@ struct UsageStoreDisabledProviderCleanupTests {
     }
 
     private static func makeUsageStore(settings: SettingsStore) -> UsageStore {
-        UsageStore(
+        let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
+            startupBehavior: .testing,
             environmentBase: [:])
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: false, progressKey: "isolated-complete")
+        }
+        return store
     }
 
     private static func setOnlyProvider(

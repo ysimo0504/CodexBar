@@ -1,3 +1,8 @@
+#if canImport(CryptoKit)
+import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 #if canImport(SQLite3)
 import SQLite3
@@ -11,30 +16,134 @@ extension CostUsageScanner {
         var timestamp: String?
     }
 
-    private static let requestMarker = "websocket request:"
-
-    static func defaultCodexPriorityDatabaseURL() -> URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex", isDirectory: true)
-            .appendingPathComponent("logs_2.sqlite", isDirectory: false)
-    }
-
-    #if canImport(SQLite3)
-    /// Accumulated priority-turn state for one trace database. The `logs` table uses an
-    /// `INTEGER PRIMARY KEY AUTOINCREMENT` id, so rowids are monotonic and never
-    /// reused. Codex prunes old rows in place, so source row IDs are retained and cheaply
-    /// revalidated before each incremental scan.
-    struct CodexPriorityTurnsMemoState {
-        var observationID: UInt64
+    /// Durable scan cursor for one trace database. `observationID` is process-local and is not
+    /// persisted; a restored cursor is applied only when `databasePath` matches the open DB.
+    struct CodexPriorityTurnsPersistedCursor: Codable, Equatable {
+        var databasePath: String
         var coverageSinceEpoch: Int64
         var lastRowID: Int64
         var fileIdentity: UInt64?
+        var anchorRowID: Int64
+        var anchorDigest: String
         var turns: [String: CodexPriorityTurnMetadata]
         var requestSourcesByTurnID: [String: [Int64: CodexPriorityTurnMetadata]]
         var priorityCompletedModelsByTurnID: [String: [Int64: String]]
         var completedModelsByTurnID: [String: [Int64: String]]
         var completedTurnIDInsertionOrder: [String]
         var completedTurnIDInsertionOrderStartIndex: Int
+    }
+
+    private static let requestMarker = "websocket request:"
+
+    static func defaultCodexPriorityDatabaseURL() -> URL {
+        CodexHomeScope
+            .ambientHomeURL(env: [:])
+            .appendingPathComponent("logs_2.sqlite", isDirectory: false)
+    }
+
+    static func resolvedCodexPriorityDatabaseURL(_ databaseURL: URL?) -> URL {
+        databaseURL ?? self.defaultCodexPriorityDatabaseURL()
+    }
+
+    /// Restores a previously persisted cursor into the process memo when that path has no live
+    /// entry. A live memo always wins; a nil, path-mismatched, or already-seeded cursor is a no-op.
+    static func seedCodexPriorityTurnsMemoIfEmpty(
+        _ cursor: CodexPriorityTurnsPersistedCursor?,
+        databaseURL: URL)
+    {
+        #if canImport(SQLite3)
+        guard let cursor, cursor.databasePath == databaseURL.path else { return }
+        let path = databaseURL.path
+        let needsSeed = self.codexPriorityTurnsMemo.withLock { $0[path] == nil }
+        guard needsSeed else { return }
+        let observationID = self.nextCodexPriorityTurnsObservationID()
+        self.codexPriorityTurnsMemo.withLock { memo in
+            guard memo[path] == nil else { return }
+            memo[path] = self.memoState(from: cursor, observationID: observationID)
+        }
+        #endif
+    }
+
+    /// Drops process-local accumulated state so the next scan rebuilds from row 0.
+    static func dropCodexPriorityTurnsMemo(databaseURL: URL) {
+        #if canImport(SQLite3)
+        self.codexPriorityTurnsMemo.withLock { memo in
+            _ = memo.removeValue(forKey: databaseURL.path)
+        }
+        #endif
+    }
+
+    /// Snapshot of the live process memo for `databaseURL`. Nil when this process has not
+    /// opened the DB.
+    static func codexPriorityTurnsPersistedCursor(databaseURL: URL) -> CodexPriorityTurnsPersistedCursor? {
+        #if canImport(SQLite3)
+        return self.codexPriorityTurnsMemo.withLock { memo in
+            memo[databaseURL.path].map {
+                self.persistedCursor(from: $0, databasePath: databaseURL.path)
+            }
+        }
+        #else
+        return nil
+        #endif
+    }
+
+    #if canImport(SQLite3)
+    /// Accumulated priority-turn state for one trace database. A durable cursor is persisted
+    /// with Codex cache metadata and reseeded into this process-local memo after relaunch.
+    /// The `logs` table uses an `INTEGER PRIMARY KEY AUTOINCREMENT` id, so rowids are
+    /// monotonic and never reused. Codex prunes old rows in place, so source row IDs are
+    /// retained and cheaply revalidated before each incremental scan.
+    struct CodexPriorityTurnsMemoState {
+        var observationID: UInt64
+        var coverageSinceEpoch: Int64
+        var lastRowID: Int64
+        var fileIdentity: UInt64?
+        var anchorRowID: Int64 = 0
+        var anchorDigest: String = ""
+        var turns: [String: CodexPriorityTurnMetadata]
+        var requestSourcesByTurnID: [String: [Int64: CodexPriorityTurnMetadata]]
+        var priorityCompletedModelsByTurnID: [String: [Int64: String]]
+        var completedModelsByTurnID: [String: [Int64: String]]
+        var completedTurnIDInsertionOrder: [String]
+        var completedTurnIDInsertionOrderStartIndex: Int
+    }
+
+    private static func memoState(
+        from cursor: CodexPriorityTurnsPersistedCursor,
+        observationID: UInt64) -> CodexPriorityTurnsMemoState
+    {
+        CodexPriorityTurnsMemoState(
+            observationID: observationID,
+            coverageSinceEpoch: cursor.coverageSinceEpoch,
+            lastRowID: cursor.lastRowID,
+            fileIdentity: cursor.fileIdentity,
+            anchorRowID: cursor.anchorRowID,
+            anchorDigest: cursor.anchorDigest,
+            turns: cursor.turns,
+            requestSourcesByTurnID: cursor.requestSourcesByTurnID,
+            priorityCompletedModelsByTurnID: cursor.priorityCompletedModelsByTurnID,
+            completedModelsByTurnID: cursor.completedModelsByTurnID,
+            completedTurnIDInsertionOrder: cursor.completedTurnIDInsertionOrder,
+            completedTurnIDInsertionOrderStartIndex: cursor.completedTurnIDInsertionOrderStartIndex)
+    }
+
+    private static func persistedCursor(
+        from state: CodexPriorityTurnsMemoState,
+        databasePath: String) -> CodexPriorityTurnsPersistedCursor
+    {
+        CodexPriorityTurnsPersistedCursor(
+            databasePath: databasePath,
+            coverageSinceEpoch: state.coverageSinceEpoch,
+            lastRowID: state.lastRowID,
+            fileIdentity: state.fileIdentity,
+            anchorRowID: state.anchorRowID,
+            anchorDigest: state.anchorDigest,
+            turns: state.turns,
+            requestSourcesByTurnID: state.requestSourcesByTurnID,
+            priorityCompletedModelsByTurnID: state.priorityCompletedModelsByTurnID,
+            completedModelsByTurnID: state.completedModelsByTurnID,
+            completedTurnIDInsertionOrder: state.completedTurnIDInsertionOrder,
+            completedTurnIDInsertionOrderStartIndex: state.completedTurnIDInsertionOrderStartIndex)
     }
 
     /// Completion models for known priority turns are retained with those turns. Completions
@@ -98,8 +207,16 @@ extension CostUsageScanner {
         self.codexPriorityTurnsObservationCounter.withLock { $0 = 0 }
     }
 
+    static func _test_resetCodexPriorityTurnsMemo(forPath path: String) {
+        self.dropCodexPriorityTurnsMemo(databaseURL: URL(fileURLWithPath: path))
+    }
+
     static func _test_codexPriorityTurnsMemoState(forPath path: String) -> CodexPriorityTurnsMemoState? {
         self.codexPriorityTurnsMemo.withLock { $0[path] }
+    }
+
+    static func _test_codexPriorityDatabaseFileIdentity(at url: URL) -> UInt64? {
+        self.codexPriorityDatabaseFileIdentity(at: url)
     }
 
     static func _test_accumulateCodexPriorityTurns(
@@ -119,22 +236,24 @@ extension CostUsageScanner {
             lastRowID: lastRowID,
             coverageSinceEpoch: coverageSinceEpoch).query
     }
+
     #endif
 
     /// Resolves priority turn metadata from the codex CLI trace database. The full-table
     /// `LIKE` scan over `feedback_log_body` grows with the database (hundreds of megabytes on
     /// active machines) and used to run on every refresh past the scan interval. For windows
     /// that extend through today — every live refresh — the result is now accumulated per
-    /// database in process memory and only rows appended since the last call are examined; the
-    /// database shrinking or being replaced, or the requested window expanding earlier than
-    /// the accumulated coverage, triggers a full rescan. Windows that end before today keep
-    /// the original bounded one-shot query so historical lookups never pay an open-ended scan.
+    /// database in a process-local memo (reseeded from the persisted cursor after relaunch)
+    /// and only rows appended since the last call are examined; the database shrinking or
+    /// being replaced, or the requested window expanding earlier than the accumulated
+    /// coverage, triggers a full rescan. Windows that end before today keep the original
+    /// bounded one-shot query so historical lookups never pay an open-ended scan.
     static func codexPriorityTurns(
         databaseURL: URL? = nil,
         sinceDayKey: String? = nil,
         untilDayKey: String? = nil) -> [String: CodexPriorityTurnMetadata]
     {
-        let url = databaseURL ?? self.defaultCodexPriorityDatabaseURL()
+        let url = self.resolvedCodexPriorityDatabaseURL(databaseURL)
         guard FileManager.default.fileExists(atPath: url.path) else { return [:] }
 
         #if canImport(SQLite3)
@@ -168,11 +287,19 @@ extension CostUsageScanner {
         {
             state = nil
         }
+        // A missing anchor row can also be Codex pruning old rows in place (retention).
+        if let memo = state, memo.anchorRowID > 0,
+           self.codexPriorityCursorAnchorDigest(db, rowID: memo.anchorRowID) != memo.anchorDigest
+        {
+            state = nil
+        }
         var resolved = state ?? CodexPriorityTurnsMemoState(
             observationID: observationID,
             coverageSinceEpoch: requestedSinceEpoch,
             lastRowID: 0,
             fileIdentity: fileIdentity,
+            anchorRowID: 0,
+            anchorDigest: "",
             turns: [:],
             requestSourcesByTurnID: [:],
             priorityCompletedModelsByTurnID: [:],
@@ -203,6 +330,12 @@ extension CostUsageScanner {
                     untilDayKey: untilDayKey)
             }
             updated.lastRowID = maxRowID
+            guard self.captureCodexPriorityCursorAnchor(db, into: &updated) else {
+                return self.filteredResolvedCodexPriorityTurns(
+                    updated,
+                    sinceDayKey: sinceDayKey,
+                    untilDayKey: untilDayKey)
+            }
             self.storeCodexPriorityTurnsMemoIfNewer(updated, forPath: url.path)
             resolved = updated
         } else if state == nil || prunedDeletedSources {
@@ -258,7 +391,8 @@ extension CostUsageScanner {
         from logs
         where ts >= ? and ts < ?
           and (feedback_log_body like '%websocket request:%'
-               or feedback_log_body like '%response.completed%')
+               or feedback_log_body like '%response.completed%'
+               or feedback_log_body like '%service_tier: Some(Some("priority"))%')
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else { return [:] }
@@ -324,6 +458,45 @@ extension CostUsageScanner {
     private static func codexPriorityDatabaseFileIdentity(at url: URL) -> UInt64? {
         (try? FileManager.default.attributesOfItem(atPath: url.path))?[.systemFileNumber]
             .flatMap { $0 as? UInt64 }
+    }
+
+    private static func captureCodexPriorityCursorAnchor(
+        _ db: OpaquePointer?,
+        into state: inout CodexPriorityTurnsMemoState) -> Bool
+    {
+        guard let digest = self.codexPriorityCursorAnchorDigest(db, rowID: state.lastRowID) else {
+            return false
+        }
+        state.anchorRowID = state.lastRowID
+        state.anchorDigest = digest
+        return true
+    }
+
+    private static func codexPriorityCursorAnchorDigest(
+        _ db: OpaquePointer?,
+        rowID: Int64) -> String?
+    {
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(
+            db,
+            "select ts, feedback_log_body from logs where rowid = ?",
+            -1,
+            &stmt,
+            nil) == SQLITE_OK
+        else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_int64(stmt, 1, rowID)
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+
+        let timestamp = sqlite3_column_int64(stmt, 0)
+        var payload = Data("\(timestamp)\n".utf8)
+        if sqlite3_column_type(stmt, 1) != SQLITE_NULL {
+            let byteCount = Int(sqlite3_column_bytes(stmt, 1))
+            if byteCount > 0, let bytes = sqlite3_column_blob(stmt, 1) {
+                payload.append(Data(bytes: bytes, count: byteCount))
+            }
+        }
+        return SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
     }
 
     private static func pruneDeletedCodexPrioritySources(
@@ -404,7 +577,9 @@ extension CostUsageScanner {
             }
             while true {
                 let stepResult = sqlite3_step(stmt)
-                if stepResult == SQLITE_DONE { break }
+                if stepResult == SQLITE_DONE {
+                    break
+                }
                 guard stepResult == SQLITE_ROW else { return nil }
                 retained.insert(sqlite3_column_int64(stmt, 0))
             }
@@ -454,7 +629,9 @@ extension CostUsageScanner {
             lastRowID: state.lastRowID,
             coverageSinceEpoch: state.coverageSinceEpoch)
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, plan.query, -1, &stmt, nil) == SQLITE_OK else { return false }
+        guard sqlite3_prepare_v2(db, plan.query, -1, &stmt, nil) == SQLITE_OK else {
+            return false
+        }
         defer { sqlite3_finalize(stmt) }
         if plan.usesTimestampIndex {
             sqlite3_bind_int64(stmt, 1, state.coverageSinceEpoch)
@@ -465,7 +642,9 @@ extension CostUsageScanner {
 
         while true {
             let stepResult = sqlite3_step(stmt)
-            guard stepResult == SQLITE_ROW else { return stepResult == SQLITE_DONE }
+            guard stepResult == SQLITE_ROW else {
+                return stepResult == SQLITE_DONE
+            }
             let rowID = sqlite3_column_int64(stmt, 0)
             let timestamp = self.timestamp(stmt: stmt, index: 1)
             guard let body = self.text(stmt: stmt, index: 2) else { continue }
@@ -507,7 +686,8 @@ extension CostUsageScanner {
                 from logs indexed by idx_logs_ts
                 where ts >= ?
                   and (feedback_log_body like '%websocket request:%'
-                       or feedback_log_body like '%response.completed%')
+                       or feedback_log_body like '%response.completed%'
+                       or feedback_log_body like '%service_tier: Some(Some("priority"))%')
                 order by rowid
                 """,
                 true)
@@ -518,7 +698,8 @@ extension CostUsageScanner {
             from logs
             where rowid > ? and ts >= ?
               and (feedback_log_body like '%websocket request:%'
-                   or feedback_log_body like '%response.completed%')
+                   or feedback_log_body like '%response.completed%'
+                   or feedback_log_body like '%service_tier: Some(Some("priority"))%')
             order by rowid
             """,
             false)
@@ -539,7 +720,9 @@ extension CostUsageScanner {
     #endif
 
     static func parseCodexPriorityTraceRow(timestamp: String?, body: String) -> CodexPriorityTurnMetadata? {
-        guard let markerRange = body.range(of: self.requestMarker) else { return nil }
+        guard let markerRange = body.range(of: self.requestMarker) else {
+            return self.parseCodexPrioritySubmissionRow(timestamp: timestamp, body: body)
+        }
         let prefix = String(body[..<markerRange.lowerBound])
         let jsonText = body[markerRange.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
         guard let data = jsonText.data(using: .utf8),
@@ -557,6 +740,25 @@ extension CostUsageScanner {
             threadID: self.value(named: "thread_id", in: prefix),
             turnID: turnID,
             model: request["model"] as? String,
+            timestamp: timestamp)
+    }
+
+    private static func parseCodexPrioritySubmissionRow(
+        timestamp: String?,
+        body: String) -> CodexPriorityTurnMetadata?
+    {
+        guard body.contains(#"service_tier: Some(Some("priority"))"#),
+              let submissionRange = body.range(of: "Submission sub=Submission {")
+        else { return nil }
+        let submission = String(body[submissionRange.upperBound...])
+        guard let turnID = self.quotedValue(named: "id", in: submission) else { return nil }
+
+        return CodexPriorityTurnMetadata(
+            threadID: self.value(
+                named: "thread_id",
+                in: String(body[..<submissionRange.lowerBound])),
+            turnID: turnID,
+            model: nil,
             timestamp: timestamp)
     }
 
@@ -584,8 +786,16 @@ extension CostUsageScanner {
         guard let range = text.range(of: "\(name)=") else { return nil }
         let tail = text[range.upperBound...]
         let value = tail.prefix { char in
-            !char.isWhitespace && char != "," && char != "]" && char != ")"
+            !char.isWhitespace && char != "," && char != "]" && char != ")" && char != "}" && char != ":"
         }
+        return value.isEmpty ? nil : String(value)
+    }
+
+    private static func quotedValue(named name: String, in text: String) -> String? {
+        guard let range = text.range(of: "\(name): \"") else { return nil }
+        let tail = text[range.upperBound...]
+        guard let end = tail.firstIndex(of: "\"") else { return nil }
+        let value = tail[..<end]
         return value.isEmpty ? nil : String(value)
     }
 
@@ -609,8 +819,12 @@ extension CostUsageScanner {
     private static func timestamp(_ timestamp: String?, isInRangeSince since: String?, until: String?) -> Bool {
         guard since != nil || until != nil else { return true }
         guard let dayKey = self.dayKey(fromTimestamp: timestamp) else { return false }
-        if let since, dayKey < since { return false }
-        if let until, dayKey > until { return false }
+        if let since, dayKey < since {
+            return false
+        }
+        if let until, dayKey > until {
+            return false
+        }
         return true
     }
 
@@ -626,7 +840,8 @@ extension CostUsageScanner {
 
     private static func nextDayKey(after dayKey: String) -> String {
         guard let date = self.localDate(forDayKey: dayKey),
-              let next = Calendar.current.date(byAdding: .day, value: 1, to: date)
+              let next = CostUsageScanner.CostUsageDayRange.localGregorianCalendar()
+                  .date(byAdding: .day, value: 1, to: date)
         else { return dayKey }
         return CostUsageScanner.CostUsageDayRange.dayKey(from: next)
     }
@@ -644,7 +859,7 @@ extension CostUsageScanner {
               let day = Int(parts[2])
         else { return nil }
         var components = DateComponents()
-        components.calendar = Calendar.current
+        components.calendar = CostUsageScanner.CostUsageDayRange.localGregorianCalendar()
         components.year = year
         components.month = month
         components.day = day

@@ -2,13 +2,22 @@ import Foundation
 
 public enum AntigravityProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(tokenAccountSupport: TokenAccountSupport(
+        title: "Google accounts",
+        subtitle: "Store multiple Antigravity Google OAuth accounts for quick switching.",
+        placeholder: "Antigravity OAuth credentials JSON",
+        injection: .environment(key: AntigravityOAuthCredentialsStore.environmentCredentialsKey),
+        requiresManualCookieSource: false,
+        cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .antigravity,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .antigravity,
                 displayName: "Antigravity",
+                shortDisplayName: "Anti",
                 sessionLabel: "Gemini Models",
                 weeklyLabel: "Claude and GPT",
                 opusLabel: nil,
@@ -20,12 +29,18 @@ public enum AntigravityProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                sharePlanLabels: [
+                    "free": "Free", "paid": "Paid", "pro": "Pro",
+                    "ultra": "Google AI Ultra", "google ai ultra": "Google AI Ultra",
+                ],
+                debugLogUnavailableMessage: "Antigravity debug log not yet implemented",
+                debugPane: ProviderDebugPaneCapabilities(errorSimulationOrder: 3),
                 dashboardURL: nil,
                 statusPageURL: nil,
                 statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
                 statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
             branding: ProviderBranding(
-                iconStyle: .antigravity,
+                iconStyle: .init(provider: .antigravity),
                 iconResourceName: "ProviderIcon-antigravity",
                 color: ProviderColor(red: 96 / 255, green: 186 / 255, blue: 126 / 255),
                 confettiPalette: [
@@ -34,14 +49,144 @@ public enum AntigravityProviderDescriptor {
                     ProviderColor(hex: 0xFBBC04),
                 ]),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Antigravity cost summary is not supported." }),
+                supportsTokenCost: true,
+                noDataMessage: { "Antigravity cost summary is not supported." },
+                supportsTokenSnapshot: true),
+            pace: ProviderPaceCapability(
+                sessionPaceWindowRule: .custom { window, _ in
+                    window.windowMinutes == nil || window.windowMinutes == 300
+                }),
+            history: .alwaysTracked,
+            presentation: ProviderUsagePresentation(
+                iconWindowResolver: self.iconWindows,
+                // Provider-specific by design: Antigravity decorates its mixed-model usage with the Gemini badge.
+                iconDecorations: [.gemini, .antigravity],
+                semanticWindowResolver: self.semanticWindows,
+                requestedMenuBarLaneOrders: [
+                    .primary: [.primary, .secondary, .tertiary],
+                    .secondary: [.secondary, .primary, .tertiary],
+                    .tertiary: [.tertiary, .secondary, .primary],
+                ],
+                automaticSelectionPrioritizesExhaustedWindow: false,
+                menuBarWindowResolver: self.menuBarWindow,
+                widgetRowLimitResolver: { rows, family in
+                    guard rows?.contains(where: { $0.id.hasPrefix(Self.quotaSummaryPrefix) }) == true else {
+                        return nil
+                    }
+                    return family == .small ? 2 : 3
+                }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .cli, .oauth],
-                pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),
+                pipeline: ProviderFetchPipeline(
+                    resolveStrategies: self.resolveStrategies,
+                    resolveFallbackError: self.resolveFallbackError)),
             cli: ProviderCLIConfig(
                 name: "antigravity",
                 versionDetector: nil))
+    }
+
+    private static let quotaSummaryPrefix = "antigravity-quota-summary-"
+    private static let compactFallbackPrefix = "antigravity-compact-fallback-"
+
+    private static func semanticWindows(snapshot: UsageSnapshot) -> ProviderSemanticWindows {
+        let rows = (snapshot.extraRateWindows ?? []).filter { $0.id.hasPrefix(self.quotaSummaryPrefix) }
+        guard !rows.isEmpty else {
+            return ProviderUsagePresentation.standardSemanticWindows(snapshot: snapshot)
+        }
+        // Family representatives can use different cadences; unavailable summary lanes must stay unavailable.
+        let known = rows.filter(\.usageKnown)
+        return ProviderSemanticWindows(
+            session: self.mostConstrained(windows: known, minutes: 300),
+            weekly: self.mostConstrained(windows: known, minutes: 7 * 24 * 60))
+    }
+
+    private static func iconWindows(context: ProviderIconWindowContext) -> ProviderUsageWindowPair {
+        let windows = (context.snapshot.extraRateWindows ?? [])
+            .filter { $0.usageKnown && $0.id.hasPrefix(self.quotaSummaryPrefix) }
+        guard !windows.isEmpty else { return ProviderUsageWindowPair(primary: nil, secondary: nil) }
+        return ProviderUsageWindowPair(
+            primary: self.mostConstrained(windows: windows, minutes: 300),
+            secondary: self.mostConstrained(windows: windows, minutes: 7 * 24 * 60))
+    }
+
+    private static func mostConstrained(windows: [NamedRateWindow], minutes: Int) -> RateWindow? {
+        windows
+            .filter { $0.window.windowMinutes == minutes }
+            .max { lhs, rhs in
+                if lhs.window.usedPercent != rhs.window.usedPercent {
+                    return lhs.window.usedPercent < rhs.window.usedPercent
+                }
+                return lhs.id > rhs.id
+            }?
+            .window
+    }
+
+    private static func menuBarWindow(
+        context: ProviderMenuBarWindowContext) -> ProviderMenuBarWindowResolution
+    {
+        switch context.metric {
+        case .primary, .secondary, .tertiary:
+            let order = self.descriptor.presentation.requestedMenuBarLaneOrder(for: context.metric)
+            return .resolved(
+                ProviderUsagePresentation.window(in: context.snapshot, following: order)
+                    ?? self.mostConstrainedExtraWindow(
+                        snapshot: context.snapshot,
+                        prefix: self.compactFallbackPrefix))
+        case .average where !context.supportsAverage:
+            return .resolved(ProviderUsagePresentation.window(
+                in: context.snapshot,
+                following: [.primary, .secondary, .tertiary]))
+        case .automatic:
+            if context.prioritizesExhaustedQuotas,
+               let ranked = self.rankedQuotaSummaryWindow(snapshot: context.snapshot, now: context.now)
+            {
+                return .resolved(ranked)
+            }
+            return .resolved(
+                self.mostConstrainedExtraWindow(snapshot: context.snapshot, prefix: self.quotaSummaryPrefix)
+                    ?? ProviderUsagePresentation.mostConstrained(
+                        context.snapshot.primary,
+                        context.snapshot.secondary,
+                        context.snapshot.tertiary)
+                    ?? self.mostConstrainedExtraWindow(
+                        snapshot: context.snapshot,
+                        prefix: self.compactFallbackPrefix))
+        default:
+            return .unhandled
+        }
+    }
+
+    private static func mostConstrainedExtraWindow(snapshot: UsageSnapshot, prefix: String) -> RateWindow? {
+        let windows = (snapshot.extraRateWindows ?? [])
+            .filter { $0.usageKnown && $0.id.hasPrefix(prefix) }
+            .map(\.window)
+        let usable = windows.filter { $0.usedPercent < 100 }
+        return (usable.isEmpty ? windows : usable).max(by: { $0.usedPercent < $1.usedPercent })
+    }
+
+    private static func rankedQuotaSummaryWindow(snapshot: UsageSnapshot, now: Date) -> RateWindow? {
+        (snapshot.extraRateWindows ?? [])
+            .filter {
+                $0.usageKnown &&
+                    $0.id.hasPrefix(self.quotaSummaryPrefix) &&
+                    $0.window.usedPercent.isFinite &&
+                    [300, 7 * 24 * 60].contains($0.window.windowMinutes)
+            }
+            .max { lhs, rhs in
+                if lhs.window.usedPercent != rhs.window.usedPercent {
+                    return lhs.window.usedPercent < rhs.window.usedPercent
+                }
+                let lhsReset = lhs.window.resetsAt.flatMap { $0 > now ? $0 : nil }
+                let rhsReset = rhs.window.resetsAt.flatMap { $0 > now ? $0 : nil }
+                if (lhsReset == nil) != (rhsReset == nil) {
+                    return lhsReset == nil
+                }
+                if let lhsReset, let rhsReset, lhsReset != rhsReset {
+                    return lhsReset > rhsReset
+                }
+                return lhs.id < rhs.id
+            }?
+            .window
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {
@@ -49,9 +194,10 @@ public enum AntigravityProviderDescriptor {
         let cli = AntigravityCLIHTTPSFetchStrategy()
         let ide = AntigravityStatusFetchStrategy(source: .ide)
         let oauth = AntigravityOAuthFetchStrategy()
+        let offline = AntigravityOfflineFetchStrategy()
         switch context.sourceMode {
         case .cli:
-            return [app, cli, ide]
+            return [app, cli, ide, offline]
         case .oauth:
             return [oauth]
         case .auto:
@@ -59,9 +205,9 @@ public enum AntigravityProviderDescriptor {
                 context.env[AntigravityOAuthCredentialsStore.environmentCredentialsKey] != nil ||
                 self.hasSharedOAuthCredentials(context: context)
             {
-                return [app, cli, ide, oauth]
+                return [app, cli, ide, oauth, offline]
             }
-            return [app, cli, ide]
+            return [app, cli, ide, offline]
         case .web, .api:
             return []
         }
@@ -73,6 +219,15 @@ public enum AntigravityProviderDescriptor {
             ?? FileManager.default.homeDirectoryForCurrentUser
         let fileURL = AntigravityOAuthCredentialsStore.defaultURL(home: homeURL)
         return FileManager.default.fileExists(atPath: fileURL.path)
+    }
+
+    static func resolveFallbackError(_ previous: Error?, _ current: Error) -> Error {
+        if (previous as? AntigravityStatusProbeError) == .authenticationRequired,
+           (current as? AntigravityStatusProbeError) == .notRunning
+        {
+            return previous ?? current
+        }
+        return current
     }
 }
 
@@ -147,7 +302,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
     static let sourceLabel = "cli"
     let id: String = "antigravity.cli-https"
     let kind: ProviderFetchKind = .cli
-    private static let log = CodexBarLog.logger(LogCategories.antigravity)
+    private static let log = CodexBarLog.logger(LogCategories.provider(.antigravity))
 
     struct SnapshotWaitDependencies {
         let pollIntervalNanoseconds: UInt64
@@ -395,7 +550,8 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
                 try await self.fetchBySpawning(
                     binary: binary,
                     idleWindow: idleWindow,
-                    resetAfterFetch: resetAfterFetch)
+                    resetAfterFetch: resetAfterFetch,
+                    expectedAccountEmail: expectedAccountEmail)
             })
     }
 
@@ -421,10 +577,10 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         // CodexBar must not manage its lifecycle, idle timeout, or
         // `resetAfterFetch` teardown. Those apply only to processes CodexBar
         // itself spawns on the fallback path below.
-        // Long-lived hosts already keep a managed session warm. Restrict external
-        // process reuse to one-shot CLI calls so app/server lifecycle accounting
-        // stays entirely inside AntigravityCLISession.
-        if resetAfterFetch, let warmSnapshot = try await Self.tryWarmAgyFetch(
+        // Persistent hosts also need the external path: a user-owned, signed-in
+        // `agy` may have credentials a newly spawned managed session cannot read.
+        // Owned pids remain excluded, so their lifecycle accounting is unchanged.
+        if let warmSnapshot = try await Self.tryWarmAgyFetch(
             timeout: 2.0,
             expectedBinaryPath: binary,
             expectedAccountEmail: expectedAccountEmail,
@@ -447,17 +603,23 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
     private func fetchBySpawning(
         binary: String,
         idleWindow: TimeInterval?,
-        resetAfterFetch: Bool) async throws -> ProviderFetchResult
+        resetAfterFetch: Bool,
+        expectedAccountEmail: String?) async throws -> ProviderFetchResult
     {
         let session = AntigravityCLISession.shared
         let pid = try await session.beginProbe(binary: binary, idleWindow: idleWindow)
-        let deadline = Date().addingTimeInterval(5.0)
+        // Fresh `agy` processes take a few seconds to complete macOS keyring
+        // authentication, then more time before quota endpoints answer. A 5s
+        // window reliably missed that cold-start window in live tests, so keep
+        // the readiness deadline long enough for a cold spawn.
+        let deadline = Date().addingTimeInterval(15.0)
         let snap: AntigravityStatusSnapshot
         let usage: UsageSnapshot
         do {
             snap = try await Self.waitForSnapshot(
                 pid: pid,
                 deadline: deadline,
+                expectedAccountEmail: expectedAccountEmail,
                 dependencies: SnapshotWaitDependencies(
                     pollIntervalNanoseconds: 200_000_000,
                     listeningPorts: { pid, timeout in
@@ -499,6 +661,7 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
     static func waitForSnapshot(
         pid: pid_t,
         deadline: Date,
+        expectedAccountEmail: String? = nil,
         dependencies: SnapshotWaitDependencies) async throws -> AntigravityStatusSnapshot
     {
         var lastFetchError: Error?
@@ -533,7 +696,24 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
                 }
                 if let readySnapshot {
                     try await Self.checkAuthenticationPrompt(dependencies)
-                    return readySnapshot
+                    if AntigravitySelectedAccountGuard.matches(
+                        snapshotAccountEmail: readySnapshot.accountEmail,
+                        expectedAccountEmail: expectedAccountEmail)
+                    {
+                        return readySnapshot
+                    }
+                    // Fresh `agy` processes can answer quota endpoints before the
+                    // signed-in account email is available; keep polling so the
+                    // account guard does not reject the cold-start snapshot.
+                    lastFetchError = AntigravityStatusProbeError.accountMismatch(
+                        expected: expectedAccountEmail,
+                        found: readySnapshot.accountEmail)
+                    Self.log.debug(
+                        "Antigravity CLI HTTPS snapshot account not ready yet",
+                        metadata: [
+                            "pid": "\(pid)",
+                            "ports": ports.map(String.init).joined(separator: ","),
+                        ])
                 }
             }
 
@@ -627,7 +807,65 @@ struct AntigravityOAuthFetchStrategy: ProviderFetchStrategy {
             sourceLabel: "oauth")
     }
 
+    func shouldFallback(on _: Error, context: ProviderFetchContext) -> Bool {
+        let homeURL = context.env["HOME"]
+            .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        return AntigravityOfflineStore.hasOfflineData(home: homeURL, env: context.env)
+    }
+}
+
+/// Offline fallback (tokscale lesson): when live probes and OAuth have no data,
+/// surface the local Antigravity CLI conversation count from
+/// `~/.gemini/antigravity-cli/conversations/*.db` as a non-quota snapshot.
+/// This keeps the menu bar from going blank on a fresh install without a running
+/// server and mirrors tokscale's direct SQLite read (no RPC, no `antigravity sync`).
+struct AntigravityOfflineFetchStrategy: ProviderFetchStrategy {
+    let id: String = "antigravity.offline"
+    let kind: ProviderFetchKind = .localProbe
+
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        // Cheap file existence check; no SQLite open.
+        let homeURL = context.env["HOME"]
+            .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        return AntigravityOfflineStore.hasOfflineData(home: homeURL, env: context.env)
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        let homeURL = context.env["HOME"]
+            .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        let count = AntigravityOfflineStore.countConversations(home: homeURL, env: context.env)
+        guard count > 0 else {
+            throw AntigravityStatusProbeError.notRunning
+        }
+        let window = RateWindow(
+            usedPercent: 0,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: nil)
+        let offlineWindow = NamedRateWindow(
+            id: "antigravity-offline-conversations",
+            title: "Offline · \(count) conversation" + (count == 1 ? "" : "s"),
+            window: window,
+            usageKnown: false)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            extraRateWindows: [offlineWindow],
+            updatedAt: Date(),
+            identity: ProviderIdentitySnapshot(
+                providerID: .antigravity,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "offline"))
+        return self.makeResult(usage: snapshot, sourceLabel: "offline")
+    }
+
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        // Offline is terminal; no further fallback.
         false
     }
 }

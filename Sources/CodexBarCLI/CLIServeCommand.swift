@@ -35,13 +35,21 @@ struct ServeOptions: CommanderParsable {
         name: .long("allow-plain-http"),
         help: "Accept sending the dashboard token over cleartext HTTP on a non-loopback host")
     var allowPlainHTTP: Bool = false
+
+    @Option(
+        name: .long("identity"),
+        help: "Dashboard snapshot identity detail: full (default) or redacted. Use redacted to hide email local " +
+            "parts from authorized dashboard clients.")
+    var identity: String?
 }
 
 enum CLIServeRoute: Equatable {
+    case webUI
+    case providerIcon(name: String)
     case health
     case usage(provider: String?)
     case cost(provider: String?)
-    case dashboardSnapshot
+    case dashboardSnapshot(provider: String?, detail: String?)
 }
 
 enum CLIServeRouteError: Error, Equatable {
@@ -59,6 +67,12 @@ enum CLIServeRouter {
         let normalizedProvider = provider?.isEmpty == false ? provider : nil
 
         switch path {
+        case "/":
+            return .webUI
+        case let path where path.hasPrefix("/icons/") && path.hasSuffix(".svg"):
+            // Static brand art; the name is validated against the embedded set
+            // in the handler, so traversal or unknown names 404 there.
+            return .providerIcon(name: String(path.dropFirst("/icons/".count).dropLast(".svg".count)))
         case "/health":
             return .health
         case "/usage":
@@ -66,7 +80,10 @@ enum CLIServeRouter {
         case "/cost":
             return .cost(provider: normalizedProvider)
         case "/dashboard/v1/snapshot":
-            return .dashboardSnapshot
+            let detail = queryItems["detail"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return .dashboardSnapshot(
+                provider: normalizedProvider,
+                detail: detail)
         default:
             throw CLIServeRouteError.notFound
         }
@@ -112,9 +129,14 @@ struct ServeRuntime {
     let requestTimeout: TimeInterval
     let healthVersion: String?
     let dashboardAuth: CLIServeDashboardAuth
+    /// Identity detail for dashboard snapshots. `nil` means no `--identity` startup
+    /// option was given, so each request follows the app's "Hide personal information"
+    /// setting. An explicit `--identity redacted` hides email local parts from every
+    /// authorized dashboard client and ignores the app setting.
+    let dashboardIdentityMode: DashboardIdentityMode?
     /// True for non-loopback binds: every data route (`/usage`, `/cost`,
     /// `/dashboard/v1/snapshot`) then requires the bearer token, so account data
-    /// is never exposed to the network unauthenticated. `/health` stays open.
+    /// is never exposed to the network unauthenticated. `/` and `/health` stay open.
     /// Resolved once at startup from the bind host.
     let dataRoutesRequireAuth: Bool
 
@@ -127,6 +149,7 @@ struct ServeRuntime {
         requestTimeout: TimeInterval,
         healthVersion: String?,
         dashboardAuth: CLIServeDashboardAuth,
+        dashboardIdentityMode: DashboardIdentityMode? = nil,
         bindHost: String)
     {
         self.configStore = configStore
@@ -137,6 +160,7 @@ struct ServeRuntime {
         self.requestTimeout = requestTimeout
         self.healthVersion = healthVersion
         self.dashboardAuth = dashboardAuth
+        self.dashboardIdentityMode = dashboardIdentityMode
         self.dataRoutesRequireAuth = !CLIServeSecurity.isLoopbackHost(bindHost)
     }
 }
@@ -146,6 +170,7 @@ private struct ServeResponseRequest: Sendable {
     let configFingerprint: String
     let refreshInterval: TimeInterval
     let deadline: ContinuousClock.Instant?
+    let allowsStaleWhileRevalidate: Bool
 }
 
 struct CLIServeCoordinatedResponse: Sendable {
@@ -153,7 +178,7 @@ struct CLIServeCoordinatedResponse: Sendable {
     let isCommitted: Bool
 }
 
-private struct ServeUsageContext: Sendable {
+struct ServeUsageContext: Sendable {
     let config: CodexBarConfig
     let configFingerprint: String
     let refreshInterval: TimeInterval
@@ -161,6 +186,7 @@ private struct ServeUsageContext: Sendable {
     let providerDeadline: ContinuousClock.Instant?
     let providerOperations: CLIServeOperationCoordinator<UsageCommandOutput>
     let includeAllCodexAccounts: Bool
+    let persistCLISessions: Bool
 
     init(
         config: CodexBarConfig,
@@ -169,7 +195,8 @@ private struct ServeUsageContext: Sendable {
         providerTimeout: TimeInterval?,
         providerDeadline: ContinuousClock.Instant?,
         providerOperations: CLIServeOperationCoordinator<UsageCommandOutput>,
-        includeAllCodexAccounts: Bool = true)
+        includeAllCodexAccounts: Bool = true,
+        persistCLISessions: Bool = true)
     {
         self.config = config
         self.configFingerprint = configFingerprint
@@ -178,13 +205,15 @@ private struct ServeUsageContext: Sendable {
         self.providerDeadline = providerDeadline
         self.providerOperations = providerOperations
         self.includeAllCodexAccounts = includeAllCodexAccounts
+        self.persistCLISessions = persistCLISessions
     }
 }
 
-private struct ServeDashboardContext: Sendable {
+struct DashboardSnapshotContext: Sendable {
     let config: CodexBarConfig
     let usage: ServeUsageContext
     let costCollection: ServeCostCollectionContext
+    let costRefreshesPricingInBackground: Bool
     let codexBarVersion: String?
 }
 
@@ -204,9 +233,14 @@ struct ServeCostCollectionContext: Sendable {
 actor CLIServeResponseCache {
     static let maximumStaleTTL: TimeInterval = 3600
     nonisolated let operations: CLIServeOperationCoordinator<CLIServeCoordinatedResponse>
+    nonisolated let wallClock: @Sendable () -> Date
 
-    init(operations: CLIServeOperationCoordinator<CLIServeCoordinatedResponse> = CLIServeOperationCoordinator()) {
+    init(
+        operations: CLIServeOperationCoordinator<CLIServeCoordinatedResponse> = CLIServeOperationCoordinator(),
+        wallClock: @escaping @Sendable () -> Date = { Date() })
+    {
         self.operations = operations
+        self.wallClock = wallClock
     }
 
     private struct Entry {
@@ -285,6 +319,24 @@ actor CLIServeResponseCache {
         return self.response(for: key)
     }
 
+    /// Returns a recently expired whole response for stale-while-revalidate.
+    /// Failure fallback keeps its provider-specific merge rules in
+    /// `completeFetch`; this path is only used before a refresh starts.
+    func staleResponseForRevalidation(
+        for key: String,
+        staleTTL: TimeInterval,
+        now: Date) -> CLILocalHTTPResponse?
+    {
+        guard staleTTL > 0 else { return nil }
+        self.pruneExpiredEntries(now: now)
+        guard let entry = self.lastGood[key],
+              now.timeIntervalSince(entry.recordedAt) <= staleTTL
+        else {
+            return nil
+        }
+        return entry.response
+    }
+
     /// Transforms a fetched response through the cache's stale policy. Successful
     /// responses are cached normally. Failed non-usage
     /// fetches may use a whole-response fallback within `staleTTL`; usage
@@ -312,18 +364,12 @@ actor CLIServeResponseCache {
             replaceCachedItems: shouldCache)
         if shouldCache {
             self.store(response, for: key, ttl: policy.ttl, now: now)
-            if key.hasPrefix("usage:") || key.hasPrefix("cost:") {
-                self.lastGood[key] = nil
-            } else {
-                self.lastGood[key] = LastGoodEntry(recordedAt: now, response: response)
-            }
+            self.lastGood[key] = LastGoodEntry(recordedAt: now, response: response)
             delivered = response
         } else if let usageMerge {
             delivered = usageMerge.response
-            self.lastGood[key] = nil
         } else if let costMerge {
             delivered = costMerge.response
-            self.lastGood[key] = nil
         } else {
             delivered = staleResponse ?? response
         }
@@ -536,7 +582,10 @@ actor CLIServeResponseCache {
     }
 
     func cachedStaleVariantCount() -> Int {
-        self.lastGood.count + self.lastGoodUsageItems.count + self.lastGoodCostItems.count
+        Set(self.lastGood.keys)
+            .union(self.lastGoodUsageItems.keys)
+            .union(self.lastGoodCostItems.keys)
+            .count
     }
 }
 
@@ -547,6 +596,7 @@ private enum CLIServeArgumentError: LocalizedError {
     case invalidRequestTimeout
     case emptyDashboardToken(source: String)
     case invalidProvider(String)
+    case invalidDashboardDetail(String)
 
     var errorDescription: String? {
         switch self {
@@ -562,6 +612,8 @@ private enum CLIServeArgumentError: LocalizedError {
             "\(source) must not be empty or whitespace."
         case let .invalidProvider(provider):
             "Unknown provider '\(provider)'."
+        case let .invalidDashboardDetail(detail):
+            "Unknown dashboard detail '\(detail)'."
         }
     }
 }
@@ -653,6 +705,18 @@ extension CodexBarCLI {
 
         let bindHost = CLIServeSecurity.bindHost(host)
         let allowPlainHTTP = Self.decodeServeAllowPlainHTTP(from: values)
+        guard let decodedIdentityMode = Self.decodeDashboardIdentityMode(from: values) else {
+            Self.exit(
+                code: .failure,
+                message: "--identity must be redacted or full.",
+                output: output,
+                kind: .args)
+        }
+        // An absent flag stays unresolved so each request can read the app's privacy
+        // setting; an explicit flag is captured once and never second-guessed.
+        let dashboardIdentityMode = Self.dashboardIdentityFlagPresent(in: values)
+            ? decodedIdentityMode
+            : nil
         if let startupError = Self.validateServeStartup(
             host: bindHost,
             hasConfiguredBearer: dashboardBearer != nil,
@@ -678,6 +742,7 @@ extension CodexBarCLI {
             requestTimeout: requestTimeout,
             healthVersion: Self.currentVersion(),
             dashboardAuth: CLIServeDashboardAuth(bearer: dashboardBearer),
+            dashboardIdentityMode: dashboardIdentityMode,
             bindHost: bindHost)
         let server = CLILocalHTTPServer(
             host: bindHost,
@@ -824,6 +889,11 @@ extension CodexBarCLI {
         }
 
         switch route {
+        case .webUI:
+            return CLIServeWebUI.response()
+        case let .providerIcon(name):
+            return CLIServeWebUI.iconResponse(name: name)
+                ?? Self.serveError(status: .notFound, message: "not found")
         case .health:
             return Self.serveHealthResponse(version: runtime.healthVersion)
         case let .usage(provider):
@@ -847,7 +917,8 @@ extension CodexBarCLI {
                     key: operationKey,
                     configFingerprint: snapshot.cacheToken,
                     refreshInterval: runtime.refreshInterval,
-                    deadline: requestDeadline),
+                    deadline: requestDeadline,
+                    allowsStaleWhileRevalidate: true),
                 cache: runtime.cache,
                 makeResponse: {
                     await Self.serveUsage(
@@ -878,7 +949,8 @@ extension CodexBarCLI {
                     key: operationKey,
                     configFingerprint: snapshot.cacheToken,
                     refreshInterval: runtime.refreshInterval,
-                    deadline: requestDeadline),
+                    deadline: requestDeadline,
+                    allowsStaleWhileRevalidate: true),
                 cache: runtime.cache,
                 makeResponse: {
                     await Self.serveCost(
@@ -892,56 +964,136 @@ extension CodexBarCLI {
                                 now: { ContinuousClock().now },
                                 providerOperations: runtime.costOperations)))
                 }))
-        case .dashboardSnapshot:
-            // Auth comes first: an unauthenticated request must not warm, read, or
-            // deduplicate against the response cache.
-            guard runtime.dashboardAuth.authorize(request) else {
-                return Self.serveUnauthorizedResponse()
-            }
-            let snapshot: CLIServeConfigSnapshot
-            let operationKey: String
-            do {
-                snapshot = try Self.loadServeConfigSnapshot(configStore: runtime.configStore)
-                operationKey = try Self.serveOperationKey(kind: "dashboard", provider: nil)
-            } catch {
-                return Self.addingNoStore(Self.serveDashboardError(
-                    status: .internalServerError,
-                    reason: .snapshotUnavailable))
-            }
-            let response = await Self.cachedServeResponse(
-                request: ServeResponseRequest(
-                    key: operationKey,
-                    configFingerprint: snapshot.cacheToken,
-                    refreshInterval: runtime.refreshInterval,
-                    deadline: requestDeadline),
-                cache: runtime.cache,
-                makeResponse: {
-                    await Self.serveDashboardSnapshot(
-                        context: ServeDashboardContext(
-                            config: snapshot.config,
-                            usage: ServeUsageContext(
-                                config: snapshot.config,
-                                configFingerprint: snapshot.cacheToken,
-                                refreshInterval: runtime.refreshInterval,
-                                providerTimeout: providerTimeout,
-                                providerDeadline: providerDeadline,
-                                providerOperations: runtime.providerOperations,
-                                includeAllCodexAccounts: false),
-                            costCollection: ServeCostCollectionContext(
-                                configFingerprint: snapshot.cacheToken,
-                                providerTimeout: providerTimeout,
-                                requestDeadline: requestDeadline,
-                                now: { ContinuousClock().now },
-                                providerOperations: runtime.costOperations),
-                            codexBarVersion: runtime.healthVersion))
-                })
-            if response.status == .gatewayTimeout {
-                return Self.addingNoStore(Self.serveDashboardError(
-                    status: .gatewayTimeout,
-                    reason: .snapshotTimeout))
-            }
-            return Self.addingNoStore(response)
+        case let .dashboardSnapshot(provider, rawDetail):
+            return await Self.serveDashboardSnapshotRoute(
+                request,
+                provider: provider,
+                rawDetail: rawDetail,
+                runtime: runtime,
+                startedAt: startedAt)
         }
+    }
+
+    /// Handles `/dashboard/v1/snapshot`. Split out of ``handleServeRequest`` so the route's
+    /// auth, argument, shell, and cached-snapshot phases stay readable in one place.
+    private static func serveDashboardSnapshotRoute(
+        _ request: CLILocalHTTPRequest,
+        provider: String?,
+        rawDetail: String?,
+        runtime: ServeRuntime,
+        startedAt: ContinuousClock.Instant) async -> CLILocalHTTPResponse
+    {
+        let requestDeadline = Self.serveRequestDeadline(
+            startedAt: startedAt,
+            requestTimeout: runtime.requestTimeout)
+        let providerTimeout = Self.serveProviderTimeout(requestTimeout: runtime.requestTimeout)
+        let providerDeadline = Self.serveProviderDeadline(
+            startedAt: startedAt,
+            requestTimeout: runtime.requestTimeout)
+        // Auth comes first: an unauthenticated request must not warm, read, or
+        // deduplicate against the response cache.
+        guard runtime.dashboardAuth.authorize(request) else {
+            return Self.serveUnauthorizedResponse()
+        }
+        // Resolved per request, not at startup: the app's "Hide personal information"
+        // toggle can flip while serve runs. The resolved mode joins the operation key so
+        // a body cached before the flip can never be replayed after it.
+        let identityMode = Self.resolveDashboardIdentityMode(
+            configured: runtime.dashboardIdentityMode,
+            hidesPersonalInfo: Self.hidePersonalInfoFromDefaults())
+        let snapshot: CLIServeConfigSnapshot
+        do {
+            snapshot = try Self.loadServeConfigSnapshot(configStore: runtime.configStore)
+        } catch {
+            return Self.addingNoStore(Self.serveDashboardError(
+                status: .internalServerError,
+                reason: .snapshotUnavailable))
+        }
+        let operationKey: String
+        let detail: DashboardSnapshotDetail
+        let providers: [UsageProvider]?
+        do {
+            operationKey = try Self.serveOperationKey(
+                kind: "dashboard-\(identityMode.rawValue)",
+                provider: provider)
+            detail = try Self.dashboardSnapshotDetail(rawDetail)
+            providers = try Self.dashboardSnapshotProviders(provider)
+        } catch {
+            return Self.addingNoStore(Self.serveError(status: .badRequest, message: error.localizedDescription))
+        }
+        if detail == .shell {
+            return Self.addingNoStore(Self.serveDashboardShell(
+                config: snapshot.config,
+                providers: providers,
+                runtime: runtime))
+        }
+        let response = await Self.cachedServeResponse(
+            request: ServeResponseRequest(
+                key: operationKey,
+                configFingerprint: snapshot.cacheToken,
+                refreshInterval: runtime.refreshInterval,
+                deadline: requestDeadline,
+                allowsStaleWhileRevalidate: true),
+            cache: runtime.cache,
+            makeResponse: {
+                await Self.serveDashboardSnapshot(
+                    context: DashboardSnapshotContext(
+                        config: snapshot.config,
+                        usage: ServeUsageContext(
+                            config: snapshot.config,
+                            configFingerprint: snapshot.cacheToken,
+                            refreshInterval: runtime.refreshInterval,
+                            providerTimeout: providerTimeout,
+                            providerDeadline: providerDeadline,
+                            providerOperations: runtime.providerOperations,
+                            includeAllCodexAccounts: false),
+                        costCollection: ServeCostCollectionContext(
+                            configFingerprint: snapshot.cacheToken,
+                            providerTimeout: providerTimeout,
+                            requestDeadline: requestDeadline,
+                            now: { ContinuousClock().now },
+                            providerOperations: runtime.costOperations),
+                        costRefreshesPricingInBackground: Self.serveCostRefreshesPricingInBackground,
+                        codexBarVersion: runtime.healthVersion),
+                    identityMode: identityMode,
+                    providers: providers)
+            })
+        if response.status == .gatewayTimeout {
+            return Self.addingNoStore(Self.serveDashboardError(
+                status: .gatewayTimeout,
+                reason: .snapshotTimeout))
+        }
+        return Self.addingNoStore(response)
+    }
+
+    private static func dashboardSnapshotDetail(_ rawDetail: String?) throws -> DashboardSnapshotDetail {
+        guard let rawDetail else { return .full }
+        guard let detail = DashboardSnapshotDetail(rawValue: rawDetail) else {
+            throw CLIServeArgumentError.invalidDashboardDetail(rawDetail)
+        }
+        return detail
+    }
+
+    private static func dashboardSnapshotProviders(_ rawProvider: String?) throws -> [UsageProvider]? {
+        try rawProvider.map { provider in
+            guard let selection = ProviderSelection(argument: provider) else {
+                throw CLIServeArgumentError.invalidProvider(provider)
+            }
+            return selection.asList
+        }
+    }
+
+    private static func serveDashboardShell(
+        config: CodexBarConfig,
+        providers: [UsageProvider]?,
+        runtime: ServeRuntime) -> CLILocalHTTPResponse
+    {
+        self.serveJSON(DashboardSnapshotBuilder.makeShellSnapshot(
+            config: config,
+            providers: providers,
+            generatedAt: Date(),
+            refreshInterval: runtime.refreshInterval,
+            codexBarVersion: runtime.healthVersion))
     }
 
     static func loadServeConfigSnapshot(
@@ -982,16 +1134,19 @@ extension CodexBarCLI {
         cache: CLIServeResponseCache,
         refreshInterval: TimeInterval,
         requestTimeout: TimeInterval = CodexBarCLI.defaultServeRequestTimeout,
+        configFingerprint: String = "",
+        staleWhileRevalidate: Bool = false,
         makeResponse: @Sendable @escaping () async -> CLILocalHTTPResponse) async -> CLILocalHTTPResponse
     {
         await self.cachedServeResponse(
             request: ServeResponseRequest(
                 key: key,
-                configFingerprint: "",
+                configFingerprint: configFingerprint,
                 refreshInterval: refreshInterval,
                 deadline: self.serveRequestDeadline(
                     startedAt: ContinuousClock().now,
-                    requestTimeout: requestTimeout)),
+                    requestTimeout: requestTimeout),
+                allowsStaleWhileRevalidate: staleWhileRevalidate),
             cache: cache,
             makeResponse: makeResponse)
     }
@@ -1004,10 +1159,45 @@ extension CodexBarCLI {
         let cacheKey = Self.serveCacheKey(
             operationKey: request.key,
             configToken: request.configFingerprint)
-        if let response = await cache.cachedResponse(for: cacheKey, now: Date()) {
+        if let response = await cache.cachedResponse(for: cacheKey, now: cache.wallClock()) {
             return response
         }
 
+        let policy = CLIServeResponseCache.CachePolicy(
+            ttl: request.refreshInterval,
+            staleTTL: Self.serveStaleTTL(refreshInterval: request.refreshInterval))
+        if request.allowsStaleWhileRevalidate,
+           let stale = await cache.staleResponseForRevalidation(
+               for: cacheKey,
+               staleTTL: policy.staleTTL,
+               now: cache.wallClock())
+        {
+            Task.detached {
+                _ = await Self.refreshServeResponse(
+                    request: request,
+                    cacheKey: cacheKey,
+                    policy: policy,
+                    cache: cache,
+                    makeResponse: makeResponse)
+            }
+            return stale
+        }
+
+        return await Self.refreshServeResponse(
+            request: request,
+            cacheKey: cacheKey,
+            policy: policy,
+            cache: cache,
+            makeResponse: makeResponse)
+    }
+
+    private static func refreshServeResponse(
+        request: ServeResponseRequest,
+        cacheKey: String,
+        policy: CLIServeResponseCache.CachePolicy,
+        cache: CLIServeResponseCache,
+        makeResponse: @Sendable @escaping () async -> CLILocalHTTPResponse) async -> CLILocalHTTPResponse
+    {
         let timeoutResponse = Self.serveTimeoutResponse()
         let outcome = await cache.operations.value(
             for: request.key,
@@ -1018,15 +1208,13 @@ extension CodexBarCLI {
                 let committed = await cache.completeFetch(
                     fetched.response,
                     for: cacheKey,
-                    policy: CLIServeResponseCache.CachePolicy(
-                        ttl: request.refreshInterval,
-                        staleTTL: Self.serveStaleTTL(refreshInterval: request.refreshInterval)),
-                    now: Date(),
+                    policy: policy,
+                    now: cache.wallClock(),
                     shouldCache: Self.shouldCacheServeResponse(fetched.response))
                 return CLIServeCoordinatedResponse(response: committed, isCommitted: true)
             },
             operation: {
-                if let response = await cache.cachedResponse(for: cacheKey, now: Date()) {
+                if let response = await cache.cachedResponse(for: cacheKey, now: cache.wallClock()) {
                     return CLIServeCoordinatedResponse(response: response, isCommitted: false)
                 }
                 let response = await makeResponse()
@@ -1041,10 +1229,8 @@ extension CodexBarCLI {
         return await cache.completeFetch(
             outcome.response,
             for: cacheKey,
-            policy: CLIServeResponseCache.CachePolicy(
-                ttl: request.refreshInterval,
-                staleTTL: Self.serveStaleTTL(refreshInterval: request.refreshInterval)),
-            now: Date(),
+            policy: policy,
+            now: cache.wallClock(),
             shouldCache: Self.shouldCacheServeResponse(outcome.response))
     }
 
@@ -1112,7 +1298,7 @@ extension CodexBarCLI {
             usageCacheKeys: output.payload.map(\.cacheAccountKey))
     }
 
-    private static func serveUsageOutput(
+    static func serveUsageOutput(
         selection: ProviderSelection,
         context: ServeUsageContext) async throws -> UsageCommandOutput
     {
@@ -1139,7 +1325,7 @@ extension CodexBarCLI {
             fetcher: UsageFetcher(),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
             browserDetection: browserDetection,
-            persistCLISessions: true,
+            persistCLISessions: context.persistCLISessions,
             persistentCLISessionIdleWindow: Self.serveCLISessionIdleWindow(
                 refreshInterval: context.refreshInterval))
 
@@ -1168,52 +1354,29 @@ extension CodexBarCLI {
         "\(configFingerprint):codex-accounts=\(includeAllCodexAccounts ? "all" : "selected")"
     }
 
-    /// Builds the token-gated dashboard snapshot. Reuses the same coordinated
-    /// usage/cost collection as `/usage` and `/cost` — per-provider budgets,
-    /// in-flight dedup, and config fingerprints all apply unchanged — then
-    /// projects the results through `DashboardSnapshotBuilder`.
-    private static func serveDashboardSnapshot(context: ServeDashboardContext) async -> CLILocalHTTPResponse {
-        let selection = Self.providerSelection(
-            rawOverride: nil,
-            enabled: context.config.enabledProviders())
-
-        let usageOutput: UsageCommandOutput
+    /// Adapts the shared dashboard snapshot producer to the authenticated HTTP
+    /// route. Auth, response caching, and `Cache-Control: no-store` remain owned
+    /// by the surrounding serve request path.
+    private static func serveDashboardSnapshot(
+        context: DashboardSnapshotContext,
+        identityMode: DashboardIdentityMode,
+        providers: [UsageProvider]? = nil) async -> CLILocalHTTPResponse
+    {
+        let result: DashboardSnapshotResult
         do {
-            usageOutput = try await Self.serveUsageOutput(selection: selection, context: context.usage)
+            result = try await DashboardSnapshotProducer.live(context: context).collect(
+                config: context.config,
+                refreshInterval: context.usage.refreshInterval,
+                codexBarVersion: context.codexBarVersion,
+                identityMode: identityMode,
+                providers: providers)
         } catch {
             return Self.serveDashboardError(status: .internalServerError, reason: .snapshotUnavailable)
         }
 
-        let costProviders = Self.costProviders(from: selection)
-        let fetcher = CostUsageFetcher()
-        let costPayloads = await Self.serveCollectCostPayloads(
-            providers: costProviders,
-            context: context.costCollection)
-        { provider in
-            do {
-                let snapshot = try await fetcher.loadTokenSnapshot(
-                    provider: provider,
-                    forceRefresh: false,
-                    refreshPricingInBackground: Self.serveCostRefreshesPricingInBackground)
-                return Self.makeCostPayload(provider: provider, snapshot: snapshot, error: nil)
-            } catch {
-                return Self.makeCostPayload(provider: provider, snapshot: nil, error: error)
-            }
-        }
-
-        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
-            usagePayloads: usageOutput.payload,
-            costPayloads: costPayloads,
-            config: context.config,
-            identityMode: .redacted,
-            generatedAt: Date(),
-            refreshInterval: context.usage.refreshInterval,
-            codexBarVersion: context.codexBarVersion)
-
-        // Cache-Control: no-store is applied uniformly at the route level.
         return Self.serveJSON(
-            snapshot,
-            usageCacheKeys: usageOutput.payload.map(\.cacheAccountKey))
+            result.payload,
+            usageCacheKeys: result.usageCacheKeys)
     }
 
     /// Per-provider fetch budget for `/usage` and `/cost`. Finite provider work
@@ -1323,36 +1486,17 @@ extension CodexBarCLI {
                 message: "cost is only supported for \(Self.costSupportedProviderNames())")
         }
 
-        // Cursor cost honors the same cookie policy here as the `cost` command: return a provider
-        // error when the source is Off and forward the Manual header for an enabled fetch.
-        let cursorCookieSettings: ProviderSettingsSnapshot.CursorProviderSettings?
-        let cursorCookieSettingsError: Error?
-        do {
-            cursorCookieSettings = try Self.cursorCookieSettings(config: context.config, providers: providers)
-            cursorCookieSettingsError = nil
-        } catch {
-            cursorCookieSettings = nil
-            cursorCookieSettingsError = error
-        }
         let fetcher = CostUsageFetcher()
-        let payload = await Self.serveCollectCostPayloads(
+        let payload = await Self.collectConfiguredCostPayloads(
             providers: providers,
+            config: context.config,
             context: context.collection)
-        { provider in
-            if let error = Self.cursorCostAvailabilityError(
-                provider,
-                settings: cursorCookieSettings,
-                resolutionError: cursorCookieSettingsError)
-            {
-                return Self.makeCostPayload(provider: provider, snapshot: nil, error: error)
-            }
+        { provider, cursorCookieHeaderOverride in
             do {
                 let snapshot = try await fetcher.loadTokenSnapshot(
                     provider: provider,
                     forceRefresh: false,
-                    cursorCookieHeaderOverride: Self.cursorCostHeaderOverride(
-                        provider,
-                        settings: cursorCookieSettings),
+                    cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                     refreshPricingInBackground: Self.serveCostRefreshesPricingInBackground)
                 return Self.makeCostPayload(provider: provider, snapshot: snapshot, error: nil)
             } catch {
@@ -1363,14 +1507,48 @@ extension CodexBarCLI {
         return Self.serveJSON(payload)
     }
 
+    static func collectConfiguredCostPayloads(
+        providers: [UsageProvider],
+        config: CodexBarConfig,
+        context: ServeCostCollectionContext,
+        fetch: @Sendable @escaping (UsageProvider, String?) async -> CostPayload) async -> [CostPayload]
+    {
+        // Keep every dashboard transport aligned with the configured Cursor credential source.
+        // Policy failures remain row-local so other providers still render.
+        let cursorCookieSettings: ProviderSettingsSnapshot.CursorProviderSettings?
+        let cursorCookieSettingsError: Error?
+        do {
+            cursorCookieSettings = try Self.cursorCookieSettings(config: config, providers: providers)
+            cursorCookieSettingsError = nil
+        } catch {
+            cursorCookieSettings = nil
+            cursorCookieSettingsError = error
+        }
+
+        return await Self.serveCollectCostPayloads(
+            providers: providers,
+            context: context)
+        { provider in
+            if let error = Self.cursorCostAvailabilityError(
+                provider,
+                settings: cursorCookieSettings,
+                resolutionError: cursorCookieSettingsError)
+            {
+                return Self.makeCostPayload(provider: provider, snapshot: nil, error: error)
+            }
+            return await fetch(
+                provider,
+                Self.cursorCostHeaderOverride(provider, settings: cursorCookieSettings))
+        }
+    }
+
     static func serveCollectCostPayloads(
         providers: [UsageProvider],
         context: ServeCostCollectionContext,
         fetch: @Sendable @escaping (UsageProvider) async -> CostPayload) async -> [CostPayload]
     {
-        // Preserve the established scan order. Pricing refresh stays best-effort
-        // background work so network latency never consumes a provider deadline;
-        // consecutive scans can still overlap that bounded adjacent work.
+        // Preserve the established scan order. The injected fetch decides whether
+        // pricing refresh is awaited; provider deadlines still bound each row.
         var payload: [CostPayload] = []
         for provider in providers {
             let deadline = Self.serveCostProviderDeadline(
@@ -1412,7 +1590,9 @@ extension CodexBarCLI {
         config: CodexBarConfig) throws -> ProviderSelection
     {
         guard let rawProvider, !rawProvider.isEmpty else {
-            return providerSelection(rawOverride: nil, enabled: config.enabledProviders())
+            return providerSelection(
+                rawOverride: nil,
+                enabled: config.enabledProviders().compactMap(\.firstPartyProvider))
         }
         guard let selection = ProviderSelection(argument: rawProvider) else {
             throw CLIServeArgumentError.invalidProvider(rawProvider)

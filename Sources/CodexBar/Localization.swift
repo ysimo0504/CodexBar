@@ -213,8 +213,41 @@ func L(_ key: String, language: String) -> String {
     return codexBarLocalizedString(key, bundle: bundle, resourceBundle: resourceBundle)
 }
 
+/// Uses an explicit duration for Simplified Chinese quota surfaces while preserving the generic
+/// `Session` translation for conversations and other non-quota UI.
+func localizedSessionQuotaLabel(_ label: String, windowMinutes: Int?) -> String {
+    let localizedLabel = L(label)
+    guard label == "Session",
+          localizedBundle().bundleURL.lastPathComponent.caseInsensitiveCompare("zh-Hans.lproj") == .orderedSame,
+          let windowMinutes
+    else { return localizedLabel }
+
+    if windowMinutes == 7 * 24 * 60 {
+        return L("Weekly")
+    }
+    guard (60...(12 * 60)).contains(windowMinutes), windowMinutes.isMultiple(of: 60) else {
+        return localizedLabel
+    }
+    return "\(codexBarLocalizedInteger(windowMinutes / 60)) \(L("Hour"))"
+}
+
 func codexBarLocalizedLocale() -> Locale {
-    let language = resolvedAppLanguage()
+    codexBarLocale(forLanguage: resolvedAppLanguage())
+}
+
+/// Returns the locale of the resource bundle currently selected by `L`.
+///
+/// This can differ from `Locale.current` when the app falls back to a supported language. Plural
+/// formatting must use this locale so it follows the same language as the resolved strings.
+func codexBarLocalizedResourceLocale() -> Locale {
+    let bundleURL = localizedBundle().bundleURL
+    guard bundleURL.pathExtension == "lproj" else {
+        return codexBarLocalizedLocale()
+    }
+    return codexBarLocale(forLanguage: bundleURL.deletingPathExtension().lastPathComponent)
+}
+
+private func codexBarLocale(forLanguage language: String) -> Locale {
     guard !language.isEmpty else { return .current }
     let normalized = language.lowercased()
     if normalized == "ar" || normalized.hasPrefix("ar-") {

@@ -219,7 +219,7 @@ struct StatusIconView: View {
     }
 
     private var accessibilityValue: String {
-        let snapshot = self.store.snapshot(for: self.provider)
+        let snapshot = self.store.snapshot(for: self.provider.instanceID)
         guard let snap = snapshot else {
             return L("No data")
         }
@@ -238,7 +238,7 @@ struct StatusIconView: View {
 
     private var icon: NSImage {
         let now = Date()
-        let snapshot = self.store.snapshot(for: self.provider)
+        let snapshot = self.store.snapshot(for: self.provider.instanceID)
         let remaining = snapshot.map {
             IconRemainingResolver.resolvedRemaining(
                 snapshot: $0,
@@ -262,6 +262,7 @@ struct StatusIconView: View {
             stale: self.store.isStale(provider: self.provider),
             style: self.store.style(for: self.provider),
             statusIndicator: self.store.statusIndicator(for: self.provider),
-            hideCritters: self.store.settings.menuBarHidesCritters)
+            hideCritters: self.store.settings.menuBarHidesCritters,
+            quotaLayoutPolicy: .provider(self.provider))
     }
 }

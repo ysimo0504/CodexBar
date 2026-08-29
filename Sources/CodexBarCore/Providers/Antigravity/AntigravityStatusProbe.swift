@@ -1,4 +1,4 @@
-import Foundation
+import Foundation // swiftlint:disable file_length
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -31,7 +31,7 @@ public struct AntigravityModelQuota: Sendable {
 }
 
 private enum AntigravityModelFamily {
-    case claude
+    case claudeModels
     case gpt
     case geminiPro
     case geminiFlash
@@ -39,26 +39,26 @@ private enum AntigravityModelFamily {
 }
 
 private enum AntigravityUsagePool: Hashable {
-    case gemini
+    case geminiAI
     case claudeGPT
 
     var id: String {
         switch self {
-        case .gemini: "antigravity-gemini"
+        case .geminiAI: "antigravity-gemini"
         case .claudeGPT: "antigravity-claude-gpt"
         }
     }
 
     var title: String {
         switch self {
-        case .gemini: "Gemini Models"
+        case .geminiAI: "Gemini Models"
         case .claudeGPT: "Claude and GPT models"
         }
     }
 
     var sortRank: Int {
         switch self {
-        case .gemini: 0
+        case .geminiAI: 0
         case .claudeGPT: 1
         }
     }
@@ -137,7 +137,7 @@ public struct AntigravityStatusSnapshot: Sendable {
 
         let normalized = Self.normalizedModels(self.modelQuotas)
         let summaryCandidates = normalized.filter(Self.isSummaryCandidate)
-        let primaryQuota = Self.representative(for: .gemini, in: summaryCandidates)
+        let primaryQuota = Self.representative(for: .geminiAI, in: summaryCandidates)
         let secondaryQuota = Self.representative(for: .claudeGPT, in: summaryCandidates)
         let fallbackQuota: AntigravityModelQuota? = if primaryQuota == nil, secondaryQuota == nil {
             switch self.source {
@@ -161,7 +161,7 @@ public struct AntigravityStatusSnapshot: Sendable {
             summaryCandidates: summaryCandidates,
             compactFallbackModelID: fallbackQuota?.modelId,
             representedPools: Set([
-                primaryQuota.map { _ in AntigravityUsagePool.gemini },
+                primaryQuota.map { _ in AntigravityUsagePool.geminiAI },
                 secondaryQuota.map { _ in AntigravityUsagePool.claudeGPT },
             ].compactMap(\.self)))
 
@@ -282,7 +282,7 @@ public struct AntigravityStatusSnapshot: Sendable {
         }
     }
 
-    static func isQuotaSummaryWindowID(_ id: String) -> Bool {
+    public static func isQuotaSummaryWindowID(_ id: String) -> Bool {
         id.hasPrefix(self.quotaSummaryWindowIDPrefix)
     }
 
@@ -406,11 +406,32 @@ public struct AntigravityStatusSnapshot: Sendable {
     static func quotaDisplayLabel(_ quota: AntigravityModelQuota) -> String {
         let trimmed = quota.label.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty || trimmed == quota.modelId else { return quota.label }
-        return Self.humanizedModelID(quota.modelId)
+        return Self.humanizedModelID(Self.canonicalModelID(quota.modelId))
+    }
+
+    /// Retired Flash generations (opencodex lesson): Google removes previous Flash from CCA
+    /// almost immediately after a successor ships. Keep old picker selections routable and
+    /// prevent stale payloads from republishing dead wire ids as separate rows.
+    private static let retiredFlashTiers: [String: String] = [
+        "gemini-3.6-flash": "gemini-3.7-flash",
+        "gemini-3.6-flash-low": "gemini-3.7-flash",
+        "gemini-3.6-flash-medium": "gemini-3.7-flash",
+        "gemini-3.6-flash-high": "gemini-3.7-flash",
+        "gemini-3.5-flash-extra-low": "gemini-3.7-flash",
+        "gemini-3.5-flash-low": "gemini-3.7-flash",
+        "gemini-3.5-flash-mid": "gemini-3.7-flash",
+        "gemini-3.5-flash-high": "gemini-3.7-flash",
+        "gemini-3-flash-agent": "gemini-3.7-flash",
+    ]
+
+    static func canonicalModelID(_ modelId: String) -> String {
+        let key = modelId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return Self.retiredFlashTiers[key] ?? modelId
     }
 
     static func humanizedModelID(_ modelId: String) -> String {
-        let parts = modelId.split(separator: "-").map(String.init)
+        let canonical = Self.canonicalModelID(modelId)
+        let parts = canonical.split(separator: "-").map(String.init)
         var words: [String] = []
         var index = 0
 
@@ -490,7 +511,7 @@ public struct AntigravityStatusSnapshot: Sendable {
 
     private static func familyRank(_ family: AntigravityModelFamily) -> Int {
         switch family {
-        case .claude: 0
+        case .claudeModels: 0
         case .gpt: 1
         case .geminiPro: 2
         case .geminiFlash: 3
@@ -511,8 +532,18 @@ public struct AntigravityStatusSnapshot: Sendable {
     }
 
     private static func normalizeModel(_ quota: AntigravityModelQuota) -> AntigravityNormalizedModel {
-        let modelId = quota.modelId.lowercased()
-        let label = quota.label.lowercased()
+        let canonicalQuota: AntigravityModelQuota = {
+            let canonicalId = Self.canonicalModelID(quota.modelId)
+            guard canonicalId != quota.modelId else { return quota }
+            return AntigravityModelQuota(
+                label: quota.label,
+                modelId: canonicalId,
+                remainingFraction: quota.remainingFraction,
+                resetTime: quota.resetTime,
+                resetDescription: quota.resetDescription)
+        }()
+        let modelId = canonicalQuota.modelId.lowercased()
+        let label = canonicalQuota.label.lowercased()
         let family = Self.family(forModelID: modelId, label: label)
 
         let isLite = modelId.contains("lite") || label.contains("lite")
@@ -524,7 +555,7 @@ public struct AntigravityStatusSnapshot: Sendable {
             || (label.contains("pro") && label.contains("low"))
 
         let selectionPriority: Int? = switch family {
-        case .claude, .gpt:
+        case .claudeModels, .gpt:
             0
         case .geminiPro:
             if isLowPriorityGeminiPro, isSelectableTextModel {
@@ -544,7 +575,7 @@ public struct AntigravityStatusSnapshot: Sendable {
         let tier = Self.parseTier(from: label, modelId: modelId)
 
         return AntigravityNormalizedModel(
-            quota: quota,
+            quota: canonicalQuota,
             family: family,
             selectionPriority: selectionPriority,
             isImage: isImage,
@@ -622,7 +653,7 @@ public struct AntigravityStatusSnapshot: Sendable {
         compactFallbackModelID: String?,
         representedPools: Set<AntigravityUsagePool>) -> [NamedRateWindow]
     {
-        let resetOnlyPoolWindows = [AntigravityUsagePool.gemini, .claudeGPT].compactMap { pool -> NamedRateWindow? in
+        let resetOnlyPoolWindows = [AntigravityUsagePool.geminiAI, .claudeGPT].compactMap { pool -> NamedRateWindow? in
             guard !representedPools.contains(pool) else { return nil }
             let candidates = summaryCandidates.filter { Self.usagePool(for: $0) == pool }
             guard let resetOnly = candidates.first(where: { model in
@@ -638,9 +669,19 @@ public struct AntigravityStatusSnapshot: Sendable {
                 usageKnown: false)
         }
 
-        let distinctWindows = models
-            .filter {
-                $0.quota.modelId == compactFallbackModelID || Self.shouldShowDistinctExtraWindow($0)
+        let distinctWindows = Dictionary(grouping: models.filter {
+            $0.quota.modelId == compactFallbackModelID || Self.shouldShowDistinctExtraWindow($0)
+        }, by: { $0.quota.modelId.lowercased() })
+            .values
+            .compactMap { group -> AntigravityNormalizedModel? in
+                // Retired Flash mapping can collapse multiple wire ids to one canonical id;
+                // keep the most constrained (lowest remaining) to avoid duplicate windows.
+                group.min { lhs, rhs in
+                    if lhs.quota.remainingPercent != rhs.quota.remainingPercent {
+                        return lhs.quota.remainingPercent < rhs.quota.remainingPercent
+                    }
+                    return lhs.quota.label < rhs.quota.label
+                }
             }
             .sorted(by: Self.modelOrderPrecedes)
             .map { m in
@@ -677,7 +718,7 @@ public struct AntigravityStatusSnapshot: Sendable {
 
     private static func pool(forExtraWindowID id: String) -> AntigravityUsagePool? {
         switch id {
-        case AntigravityUsagePool.gemini.id: .gemini
+        case AntigravityUsagePool.geminiAI.id: .geminiAI
         case AntigravityUsagePool.claudeGPT.id: .claudeGPT
         default: nil
         }
@@ -686,8 +727,8 @@ public struct AntigravityStatusSnapshot: Sendable {
     private static func usagePool(for model: AntigravityNormalizedModel) -> AntigravityUsagePool? {
         switch model.family {
         case .geminiPro, .geminiFlash:
-            .gemini
-        case .claude, .gpt:
+            .geminiAI
+        case .claudeModels, .gpt:
             .claudeGPT
         case .unknown:
             nil
@@ -702,9 +743,10 @@ public struct AntigravityStatusSnapshot: Sendable {
         return Self.family(from: label)
     }
 
+    /// Provider-specific by design: model family classification via string matching.
     private static func family(from text: String) -> AntigravityModelFamily {
         if text.contains("claude") {
-            return .claude
+            return .claudeModels
         }
         if text.contains("gpt") || text.contains("openai") {
             return .gpt
@@ -807,7 +849,24 @@ public struct AntigravityStatusProbe: Sendable {
     private static let quotaSummaryPath =
         "/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary"
     private static let unleashPath = "/exa.language_server_pb.LanguageServerService/GetUnleashData"
-    private static let log = CodexBarLog.logger(LogCategories.antigravity)
+    private static let log = CodexBarLog.logger(LogCategories.provider(.antigravity))
+    private static let localhostDelegate = LocalhostSessionDelegate()
+    /// Reuse one process-lifetime session. Per-request invalidation exercises a FoundationNetworking/libdispatch
+    /// socket-teardown race on Linux that can manifest as a use-after-free.
+    /// See #2243 and swiftlang/swift-corelibs-foundation#4791.
+    private static let localhostSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 120
+        #if !os(Linux)
+        config.waitsForConnectivity = false
+        #endif
+        return URLSession(configuration: config, delegate: Self.localhostDelegate, delegateQueue: nil)
+    }()
+
+    static var localhostSessionForTesting: URLSession {
+        self.localhostSession
+    }
 
     public init(timeout: TimeInterval = 8.0, processScope: ProcessScope = .ideAndCLI) {
         self.timeout = timeout
@@ -1044,6 +1103,16 @@ public struct AntigravityStatusProbe: Sendable {
         timeout: TimeInterval,
         scope: ProcessScope = .ideAndCLI) async throws -> [ProcessInfoResult]
     {
+        #if canImport(Darwin)
+        let entries = DarwinProcessEnumerator.allPIDs().compactMap { pid -> (pid: Int, command: String)? in
+            guard let executablePath = DarwinProcessEnumerator.executablePath(pid: pid),
+                  DarwinProcessEnumerator.isAntigravityCandidatePath(executablePath)
+            else { return nil }
+            let command = DarwinProcessEnumerator.commandLine(pid: pid) ?? executablePath
+            return (Int(pid), command)
+        }
+        return try self.processInfos(fromEntries: entries, scope: scope)
+        #else
         let env = ProcessInfo.processInfo.environment
         let result = try await SubprocessRunner.run(
             binary: "/bin/ps",
@@ -1053,6 +1122,7 @@ public struct AntigravityStatusProbe: Sendable {
             label: "antigravity-ps")
 
         return try Self.processInfos(fromProcessListOutput: result.stdout, scope: scope)
+        #endif
     }
 
     static func processInfo(
@@ -1070,31 +1140,39 @@ public struct AntigravityStatusProbe: Sendable {
         fromProcessListOutput output: String,
         scope: ProcessScope = .ideAndCLI) throws -> [ProcessInfoResult]
     {
-        let lines = output.split(separator: "\n")
+        let entries = output.split(separator: "\n").compactMap { line -> (pid: Int, command: String)? in
+            guard let match = Self.matchProcessLine(String(line)) else { return nil }
+            return (match.pid, match.command)
+        }
+        return try self.processInfos(fromEntries: entries, scope: scope)
+    }
+
+    static func processInfos(
+        fromEntries entries: [(pid: Int, command: String)],
+        scope: ProcessScope = .ideAndCLI) throws -> [ProcessInfoResult]
+    {
         var sawTokenlessIDE = false
         var results: [ProcessInfoResult] = []
-        for line in lines {
-            let text = String(line)
-            guard let match = Self.matchProcessLine(text) else { continue }
-            guard let kind = Self.antigravityProcessKind(match.command) else { continue }
+        for entry in entries {
+            guard let kind = Self.antigravityProcessKind(entry.command) else { continue }
             if !Self.processKind(kind, matches: scope) { continue }
             // The IDE language server authenticates local requests with a
             // `--csrf_token` and must keep requiring it: skip a tokenless IDE
             // or app match so a later valid server can still be found (and surface
             // `missingCSRFToken` if none is). The CLI's language server exposes
             // no token flag and needs none, so an empty token is allowed there.
-            guard let token = Self.resolvedCSRFToken(forKind: kind, command: match.command) else {
+            guard let token = Self.resolvedCSRFToken(forKind: kind, command: entry.command) else {
                 sawTokenlessIDE = true
                 continue
             }
-            let port = Self.extractPort("--extension_server_port", from: match.command)
-            let extensionServerCSRFToken = Self.extractFlag("--extension_server_csrf_token", from: match.command)
+            let port = Self.extractPort("--extension_server_port", from: entry.command)
+            let extensionServerCSRFToken = Self.extractFlag("--extension_server_csrf_token", from: entry.command)
             results.append(ProcessInfoResult(
-                pid: match.pid,
+                pid: entry.pid,
                 extensionPort: port,
                 extensionServerCSRFToken: extensionServerCSRFToken,
                 csrfToken: token,
-                commandLine: match.command))
+                commandLine: entry.command))
         }
 
         if !results.isEmpty {
@@ -1193,6 +1271,9 @@ public struct AntigravityStatusProbe: Sendable {
     private static func isAntigravityCommandLine(_ command: String) -> Bool {
         if command.contains("--app_data_dir") && command.contains("antigravity") { return true }
         if command.contains("antigravity.app/") || command.contains("antigravity.app\\") { return true }
+        // The renamed Gemini desktop app (#2836). Require a leading path
+        // separator so unrelated names like "notgemini.app" cannot match.
+        if command.contains("/gemini.app/") || command.contains("\\gemini.app\\") { return true }
         if command.contains("antigravity ide.app/") || command.contains("antigravity ide.app\\") { return true }
         if command.contains("/antigravity/") || command.contains("\\antigravity\\") { return true }
         return false
@@ -1563,7 +1644,7 @@ public struct AntigravityStatusProbe: Sendable {
             deadline: context.deadline)
     }
 
-    private static func makeRequest(
+    static func makeRequest(
         payload: RequestPayload,
         context: RequestContext) async throws -> Data
     {
@@ -1651,18 +1732,7 @@ public struct AntigravityStatusProbe: Sendable {
             request.setValue(endpoint.csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
         }
 
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = timeout
-        config.timeoutIntervalForResource = timeout
-        #if !os(Linux)
-        config.waitsForConnectivity = false
-        #endif
-
-        let delegate = LocalhostSessionDelegate()
-        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-        defer { session.invalidateAndCancel() }
-
-        let (data, response) = try await delegate.data(for: request, session: session)
+        let (data, response) = try await self.localhostDelegate.data(for: request, session: self.localhostSession)
         guard let http = response as? HTTPURLResponse else {
             throw AntigravityStatusProbeError.apiError("Invalid response")
         }

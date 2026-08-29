@@ -9,6 +9,7 @@ struct ClaudeSwapTransientState {
     var switchingAccountID: ProviderAccountIdentity?
     var task: Task<Void, Never>?
     var versionProbedPath: String?
+    var versionProbeGeneration: UInt64 = 0
 }
 
 extension UsageStore {
@@ -20,12 +21,29 @@ extension UsageStore {
             !self.settings.claudeSwapExecutablePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// The active claude-swap account's usage snapshot when the adapter owns Claude
+    /// account presentation (issue #2731: with two accounts the menu shows adapter
+    /// cards while the bar rendered the ambient snapshot, which can have no usable
+    /// windows). Returns nil — keep the ambient snapshot — when the adapter is below
+    /// its presentation threshold or the active account reports no usable usage.
+    func claudeSwapMenuBarSnapshotOverride(for instanceID: ProviderInstanceID) -> UsageSnapshot? {
+        guard instanceID == UsageProvider.claude.instanceID else { return nil }
+        guard ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+            provider: .claude,
+            accountCount: self.claudeSwapAccountSnapshots.count,
+            showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        else { return nil }
+        return self.claudeSwapAccountSnapshots.first(where: \.isActive)?.snapshot
+    }
+
     func clearClaudeSwapAccountState() {
         let hadState = !self.claudeSwapAccountSnapshots.isEmpty ||
             self.claudeSwapLastRefreshAt != nil || self.claudeSwapLastError != nil ||
             self.claudeSwapTransientState.lastError != nil ||
             self.claudeSwapTransientState.lastErrorAccountID != nil ||
-            self.claudeSwapTransientState.switchingAccountID != nil
+            self.claudeSwapTransientState.switchingAccountID != nil ||
+            self.claudeSwapTransientState.versionProbedPath != nil ||
+            self.claudeSwapDetectedVersion != nil
         self.claudeSwapRefreshTask?.cancel()
         self.claudeSwapRefreshTask = nil
         self.claudeSwapAccountSnapshots = []
@@ -34,6 +52,9 @@ extension UsageStore {
         self.claudeSwapTransientState.lastError = nil
         self.claudeSwapTransientState.lastErrorAccountID = nil
         self.claudeSwapTransientState.switchingAccountID = nil
+        self.claudeSwapTransientState.versionProbedPath = nil
+        self.claudeSwapTransientState.versionProbeGeneration &+= 1
+        self.claudeSwapDetectedVersion = nil
         if hadState {
             self.claudeSwapRevision &+= 1
         }
@@ -59,10 +80,14 @@ extension UsageStore {
 
         do {
             let list = try await ClaudeSwapAccountReader.readAccountList(executablePath: executablePath)
-            let snapshots = ClaudeSwapAccountProjection.accountSnapshots(from: list)
+            let snapshots = ClaudeSwapAccountProjection.accountSnapshots(
+                from: list,
+                previousAccounts: ClaudeSwapRetainedUsageStore.previousAccounts(
+                    inMemory: self.claudeSwapAccountSnapshots))
             guard self.isCurrentClaudeSwapRefresh(executablePath: executablePath, generation: generation) else {
                 return
             }
+            ClaudeSwapRetainedUsageStore.save(snapshots)
             self.claudeSwapAccountSnapshots = snapshots
             self.claudeSwapLastRefreshAt = Date()
             self.claudeSwapLastError = nil
@@ -135,8 +160,13 @@ extension UsageStore {
 
     private func probeClaudeSwapVersionIfNeeded(executablePath: String) async {
         guard self.claudeSwapTransientState.versionProbedPath != executablePath else { return }
-        let version = await ClaudeSwapAccountReader.readVersion(executablePath: executablePath)
-        guard self.isCurrentClaudeSwapConfiguration(executablePath: executablePath) else { return }
+        self.claudeSwapTransientState.versionProbeGeneration &+= 1
+        let generation = self.claudeSwapTransientState.versionProbeGeneration
+        guard let version = await ClaudeSwapAccountReader.readVersion(executablePath: executablePath),
+              !Task.isCancelled,
+              self.claudeSwapTransientState.versionProbeGeneration == generation,
+              self.isCurrentClaudeSwapConfiguration(executablePath: executablePath)
+        else { return }
         self.claudeSwapTransientState.versionProbedPath = executablePath
         self.claudeSwapDetectedVersion = version
     }

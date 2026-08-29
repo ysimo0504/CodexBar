@@ -1,9 +1,22 @@
 import CodexBarCore
 import Foundation
 
+struct DashboardClaudeSwapInput {
+    let accounts: [ProviderAccountUsageSnapshot]?
+    let adapterError: String?
+    let weeklyWorkDays: Int?
+}
+
 /// Projects the CLI's provider usage and cost payloads into the stable,
 /// display-oriented `/dashboard/v1/snapshot` contract.
 enum DashboardSnapshotBuilder {
+    private struct ProviderPresentation {
+        let id: String
+        let name: String
+        let enabled: Bool
+        let display: DashboardDisplayPayload
+    }
+
     // swiftlint:disable:next function_parameter_count
     static func makeSnapshot(
         usagePayloads: [ProviderPayload],
@@ -12,26 +25,32 @@ enum DashboardSnapshotBuilder {
         identityMode: DashboardIdentityMode,
         generatedAt: Date,
         refreshInterval: TimeInterval,
-        codexBarVersion: String?) -> DashboardSnapshotPayload
+        codexBarVersion: String?,
+        claudeSwap: DashboardClaudeSwapInput? = nil) -> DashboardSnapshotPayload
     {
         var costByProvider: [String: CostPayload] = [:]
         for cost in costPayloads {
             costByProvider[cost.provider] = cost
         }
-        let enabledProviders = Set(config.enabledProviders())
-        var sortKeys: [String: Int] = [:]
-        for (index, provider) in config.orderedProviders().enumerated() where sortKeys[provider.rawValue] == nil {
-            sortKeys[provider.rawValue] = index * 10
-        }
-
+        var attachedClaudeSwap = false
         let providers = usagePayloads.enumerated().map { index, payload in
-            self.makeProvider(
+            var rowClaudeSwap: DashboardClaudeSwapInput?
+            // Provider-specific by design: claude-swap account data belongs only on the first Claude row.
+            if !attachedClaudeSwap, UsageProvider(rawValue: payload.provider) == .claude {
+                rowClaudeSwap = claudeSwap
+                attachedClaudeSwap = true
+            }
+            let presentation = self.providerPresentation(
+                id: payload.provider,
+                config: config,
+                fallbackSortKey: 10000 + index)
+            return self.makeProvider(
                 payload: payload,
                 cost: costByProvider[payload.provider],
-                enabledProviders: enabledProviders,
-                sortKey: sortKeys[payload.provider] ?? (10000 + index),
+                presentation: presentation,
                 identityMode: identityMode,
-                generatedAt: generatedAt)
+                generatedAt: generatedAt,
+                claudeSwap: rowClaudeSwap)
         }
 
         let refreshSeconds = self.dashboardRefreshSeconds(refreshInterval)
@@ -45,40 +64,177 @@ enum DashboardSnapshotBuilder {
             providers: providers)
     }
 
+    static func makeShellSnapshot(
+        config: CodexBarConfig,
+        providers requestedProviders: [UsageProvider]? = nil,
+        generatedAt: Date,
+        refreshInterval: TimeInterval,
+        codexBarVersion: String?) -> DashboardSnapshotPayload
+    {
+        let providers = requestedProviders
+            ?? config.enabledProviders().compactMap(\.firstPartyProvider)
+        let rows = providers.enumerated().map { index, provider in
+            let presentation = self.providerPresentation(
+                id: provider.rawValue,
+                config: config,
+                fallbackSortKey: 10000 + index)
+            return DashboardProviderPayload(
+                id: presentation.id,
+                name: presentation.name,
+                enabled: presentation.enabled,
+                source: "",
+                status: nil,
+                identity: nil,
+                windows: [],
+                credits: nil,
+                cost: nil,
+                display: presentation.display,
+                error: nil,
+                updatedAt: nil,
+                accounts: nil,
+                accountsError: nil,
+                detail: .shell)
+        }
+        let refreshSeconds = self.dashboardRefreshSeconds(refreshInterval)
+        return DashboardSnapshotPayload(
+            schemaVersion: 1,
+            generatedAt: generatedAt,
+            staleAfterSeconds: max(180, refreshSeconds * 3),
+            host: DashboardHostPayload(
+                codexBarVersion: codexBarVersion,
+                refreshIntervalSeconds: refreshSeconds),
+            providers: rows)
+    }
+
     // swiftlint:disable:next function_parameter_count
     private static func makeProvider(
         payload: ProviderPayload,
         cost: CostPayload?,
-        enabledProviders: Set<UsageProvider>,
-        sortKey: Int,
+        presentation: ProviderPresentation,
         identityMode: DashboardIdentityMode,
-        generatedAt: Date) -> DashboardProviderPayload
+        generatedAt: Date,
+        claudeSwap: DashboardClaudeSwapInput?) -> DashboardProviderPayload
     {
         let provider = UsageProvider(rawValue: payload.provider)
         let descriptor = provider.map { ProviderDescriptorRegistry.descriptor(for: $0) }
         let metadata = descriptor?.metadata
 
         let error = (payload.error ?? cost?.error).map(self.makeError)
+        let accounts = claudeSwap?.adapterError == nil
+            ? claudeSwap?.accounts?.map { account in
+                self.makeClaudeSwapAccount(
+                    account,
+                    identityMode: identityMode,
+                    weeklyWorkDays: claudeSwap?.weeklyWorkDays,
+                    generatedAt: generatedAt)
+            }
+            : nil
         return DashboardProviderPayload(
-            id: payload.provider,
-            name: metadata?.displayName ?? payload.provider,
-            enabled: provider.map { enabledProviders.contains($0) } ?? true,
+            id: presentation.id,
+            name: presentation.name,
+            enabled: presentation.enabled,
             source: self.dashboardSource(from: payload.source),
             status: self.makeStatus(payload.status),
             identity: self.makeIdentity(provider: provider, usage: payload.usage, mode: identityMode),
             windows: self.makeWindows(provider: provider, metadata: metadata, usage: payload.usage),
             credits: self.makeCredits(payload.credits),
             cost: self.makeCost(cost, referenceDate: generatedAt),
-            display: DashboardDisplayPayload(
-                accentColor: self.hexColor(descriptor?.branding.color),
-                sortKey: sortKey,
-                priority: "normal"),
+            display: presentation.display,
             error: error,
             updatedAt: self.updatedAt(
                 payload: payload,
                 cost: cost,
                 error: error,
-                generatedAt: generatedAt))
+                generatedAt: generatedAt),
+            accounts: accounts,
+            accountsError: claudeSwap?.adapterError)
+    }
+
+    private static func providerPresentation(
+        id: String,
+        config: CodexBarConfig,
+        fallbackSortKey: Int) -> ProviderPresentation
+    {
+        let provider = UsageProvider(rawValue: id)
+        let descriptor = provider.map { ProviderDescriptorRegistry.descriptor(for: $0) }
+        let enabledProviders = Set(config.enabledProviders().compactMap(\.firstPartyProvider))
+        let sortKey = config.orderedProviders().firstIndex { $0.rawValue == id }.map { $0 * 10 }
+            ?? fallbackSortKey
+        let accentOverride = ProviderInstanceID(rawValue: id)
+            .flatMap { config.providerConfig(for: $0)?.accentColor }
+            .flatMap { ProviderColor(hexString: $0) }
+        return ProviderPresentation(
+            id: id,
+            name: descriptor?.metadata.displayName ?? id,
+            enabled: provider.map { enabledProviders.contains($0) } ?? true,
+            display: DashboardDisplayPayload(
+                accentColor: self.hexColor(accentOverride ?? descriptor?.branding.color),
+                sortKey: sortKey,
+                priority: "normal"))
+    }
+
+    private static func makeClaudeSwapAccount(
+        _ account: ProviderAccountUsageSnapshot,
+        identityMode: DashboardIdentityMode,
+        weeklyWorkDays: Int?,
+        generatedAt: Date) -> DashboardAccountPayload
+    {
+        // Provider-specific by design: identity stays the source email; the card label may be an alias
+        // or an "email · org" disambiguation, and redaction rewrites only the email prefix.
+        let sourceEmail: String? = {
+            if let email = account.accountEmail, email.contains("@") { return email }
+            if let email = account.snapshot?.identity?.accountEmail, email.contains("@") { return email }
+            return nil
+        }()
+        let presentedEmail = identityMode != .none && sourceEmail?.contains("@") == true
+            ? self.dashboardEmail(sourceEmail, mode: identityMode)
+            : nil
+        let identity = presentedEmail.map { DashboardIdentityPayload(accountEmail: $0, plan: nil) }
+        let trimmedLabel = account.displayLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackLabel = trimmedLabel.isEmpty ? "Account \(account.id.opaqueID)" : trimmedLabel
+        let label = self.claudeSwapDashboardLabel(
+            displayLabel: fallbackLabel,
+            sourceEmail: sourceEmail,
+            presentedEmail: presentedEmail,
+            accountID: account.id.opaqueID,
+            identityMode: identityMode)
+        // Provider-specific by design: claude-swap account windows and pace use Claude's presentation semantics.
+        let metadata = ProviderDescriptorRegistry.descriptor(for: UsageProvider.claude).metadata
+        return DashboardAccountPayload(
+            id: "\(account.id.source):\(account.id.opaqueID)",
+            label: label,
+            active: account.isActive,
+            identity: identity,
+            windows: self.makeWindows(provider: .claude, metadata: metadata, usage: account.snapshot),
+            pace: account.snapshot.flatMap {
+                CLIRenderer.providerPacePayload(
+                    provider: .claude,
+                    snapshot: $0,
+                    weeklyWorkDays: weeklyWorkDays,
+                    now: generatedAt)
+            },
+            error: account.error,
+            updatedAt: account.snapshot?.updatedAt)
+    }
+
+    private static func claudeSwapDashboardLabel(
+        displayLabel: String,
+        sourceEmail: String?,
+        presentedEmail: String?,
+        accountID: String,
+        identityMode: DashboardIdentityMode) -> String
+    {
+        if let presentedEmail {
+            if let sourceEmail,
+               displayLabel.contains("@"),
+               displayLabel == sourceEmail || displayLabel.hasPrefix(sourceEmail)
+            {
+                let suffix = String(displayLabel.dropFirst(sourceEmail.count))
+                return presentedEmail + self.redactEmailShapedText(suffix, mode: identityMode)
+            }
+            return self.redactEmailShapedText(displayLabel, mode: identityMode)
+        }
+        return displayLabel.contains("@") ? "Account \(accountID)" : displayLabel
     }
 
     private static func makeError(_ error: ProviderErrorPayload) -> DashboardErrorPayload {
@@ -132,7 +288,7 @@ enum DashboardSnapshotBuilder {
     {
         guard mode != .none,
               let provider,
-              let identity = usage?.identity(for: provider)
+              let identity = usage?.identity(for: provider.instanceID)
         else {
             return nil
         }
@@ -154,6 +310,67 @@ enum DashboardSnapshotBuilder {
         return "redacted\(email[at...])"
     }
 
+    /// Redacts every bounded `@` address range, including apostrophes, quoted local parts,
+    /// internal domains, and domain literals, so Hide Personal Info cannot leak a second address.
+    private static func redactEmailShapedText(_ text: String, mode: DashboardIdentityMode) -> String {
+        guard mode == .redacted else { return text }
+        var output = ""
+        var cursor = text.startIndex
+        var search = text.startIndex
+        while let at = text[search...].firstIndex(of: "@") {
+            let localStart = self.emailTokenStart(in: text, before: at)
+            let domainEnd = self.emailTokenEnd(in: text, after: at)
+            if localStart < at, domainEnd > text.index(after: at) {
+                output += text[cursor..<localStart]
+                output += self.dashboardEmail(String(text[localStart..<domainEnd]), mode: .redacted) ?? "redacted"
+                cursor = domainEnd
+                search = domainEnd
+            } else {
+                search = text.index(after: at)
+            }
+        }
+        output += text[cursor...]
+        return output
+    }
+
+    private static func emailTokenStart(in text: String, before at: String.Index) -> String.Index {
+        var idx = at
+        var inQuotedLocalPart = false
+        while idx > text.startIndex {
+            let previous = text.index(before: idx)
+            let character = text[previous]
+            if character == "\"" {
+                inQuotedLocalPart.toggle()
+                idx = previous
+                continue
+            }
+            if !inQuotedLocalPart, self.isEmailBoundary(character) { break }
+            idx = previous
+        }
+        return idx
+    }
+
+    private static func emailTokenEnd(in text: String, after at: String.Index) -> String.Index {
+        var idx = text.index(after: at)
+        guard idx < text.endIndex else { return idx }
+        if text[idx] == "[" {
+            while idx < text.endIndex {
+                let character = text[idx]
+                idx = text.index(after: idx)
+                if character == "]" { break }
+            }
+            return idx
+        }
+        while idx < text.endIndex, !self.isEmailBoundary(text[idx]) {
+            idx = text.index(after: idx)
+        }
+        return idx
+    }
+
+    private static func isEmailBoundary(_ character: Character) -> Bool {
+        character.isWhitespace || "()<>:,;·/".contains(character)
+    }
+
     private static func dashboardPlan(_ raw: String?, provider: UsageProvider) -> String? {
         guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
               !raw.isEmpty
@@ -161,6 +378,7 @@ enum DashboardSnapshotBuilder {
             return nil
         }
 
+        // Provider-specific by design: Codex plan aliases and Kilo's auto-top-up suffix require distinct cleanup.
         if provider == .codex {
             return CodexPlanFormatting.displayName(raw) ?? UsageFormatter.cleanPlanName(raw)
         }
@@ -180,14 +398,25 @@ enum DashboardSnapshotBuilder {
         usage: UsageSnapshot?) -> [DashboardWindowPayload]
     {
         guard let usage else { return [] }
+        // Provider-specific by design: Antigravity's primary and secondary are representatives
+        // copied out of its own quota-summary lanes so the icon and menu bar have standard slots
+        // to read. Emitting all three repeats two lanes under the generic session and weekly
+        // labels, so the dashboard renders the summary lanes alone, one per quota bucket.
+        if provider == .antigravity, let windows = self.antigravityQuotaSummaryWindows(usage) {
+            return windows
+        }
         let labels = self.rateWindowLabels(provider: provider, metadata: metadata, usage: usage)
         var windows: [DashboardWindowPayload] = []
+        // Provider-specific by design: Amp subscription payloads model balance and orb as non-time-window kinds.
+        let isAmpSubscription = provider == .amp && usage.secondary != nil
 
         if let primary = usage.primary {
-            windows.append(self.makeWindow(kind: "session", label: labels.primary, window: primary))
+            let kind = isAmpSubscription ? "other" : "session"
+            windows.append(self.makeWindow(kind: kind, label: labels.primary, window: primary))
         }
         if let secondary = usage.secondary {
-            windows.append(self.makeWindow(kind: "weekly", label: labels.secondary, window: secondary))
+            let kind = isAmpSubscription ? "orb" : "weekly"
+            windows.append(self.makeWindow(kind: kind, label: labels.secondary, window: secondary))
         }
         if let tertiary = usage.tertiary {
             windows.append(self.makeWindow(kind: "tertiary", label: labels.tertiary, window: tertiary))
@@ -197,6 +426,26 @@ enum DashboardSnapshotBuilder {
         }
 
         return windows
+    }
+
+    /// Display lanes for an Antigravity quota-summary snapshot, or `nil` when the snapshot has no
+    /// summary lanes and must keep the standard primary and secondary rows. Every family stays in the
+    /// payload, because a script client reads the same document and must not lose a window. The lanes of
+    /// a family that reports no usage carry `idle`, the same rule the menu card and the widget use to
+    /// hide that family, so the web UI can drop those rows without repeating the rule in JavaScript.
+    private static func antigravityQuotaSummaryWindows(_ usage: UsageSnapshot) -> [DashboardWindowPayload]? {
+        let extras = usage.extraRateWindows ?? []
+        guard extras.contains(where: { AntigravityStatusSnapshot.isQuotaSummaryWindowID($0.id) }) else {
+            return nil
+        }
+        let idleWindowIDs = AntigravityQuotaFamilyVisibility.idleWindowIDs(in: usage)
+        return extras.map {
+            self.makeWindow(
+                kind: $0.id,
+                label: $0.title,
+                window: $0.window,
+                idle: idleWindowIDs.contains($0.id))
+        }
     }
 
     private struct RateWindowLabels {
@@ -210,17 +459,26 @@ enum DashboardSnapshotBuilder {
         metadata: ProviderMetadata?,
         usage: UsageSnapshot) -> RateWindowLabels
     {
-        if provider == .factory, usage.tertiary != nil {
-            return RateWindowLabels(primary: "5-hour", secondary: "Weekly", tertiary: "Monthly")
+        guard let provider else {
+            return RateWindowLabels(
+                primary: metadata?.sessionLabel ?? "Session",
+                secondary: metadata?.weeklyLabel ?? "Weekly",
+                tertiary: metadata?.opusLabel ?? "Tertiary")
         }
-
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let labels = descriptor.presentation.rateWindowLabels(metadata: descriptor.metadata, snapshot: usage)
         return RateWindowLabels(
-            primary: metadata?.sessionLabel ?? "Session",
-            secondary: metadata?.weeklyLabel ?? "Weekly",
-            tertiary: metadata?.opusLabel ?? "Tertiary")
+            primary: labels.primary,
+            secondary: labels.secondary,
+            tertiary: labels.tertiary)
     }
 
-    private static func makeWindow(kind: String, label: String, window: RateWindow) -> DashboardWindowPayload {
+    private static func makeWindow(
+        kind: String,
+        label: String,
+        window: RateWindow,
+        idle: Bool = false) -> DashboardWindowPayload
+    {
         let used = self.clampedPercent(window.usedPercent)
         let remaining = self.clampedPercent(100 - used)
         return DashboardWindowPayload(
@@ -228,7 +486,8 @@ enum DashboardSnapshotBuilder {
             label: label,
             usedPercent: used,
             remainingPercent: remaining,
-            resetAt: window.resetsAt)
+            resetAt: window.resetsAt,
+            idle: idle)
     }
 
     private static func clampedPercent(_ value: Double) -> Double {

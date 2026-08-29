@@ -9,6 +9,21 @@ import Testing
 @MainActor
 struct AdaptiveRefreshTimerTests {
     @Test
+    func `timer fixture seeds disabled providers without enabling web access`() throws {
+        let settings = Self.makeSettingsStore(suite: "AdaptiveRefreshTimerTests-fixture-state", frequency: .oneMinute)
+        let metadata = ProviderRegistry.shared.metadata
+        for provider in UsageProvider.allCases where metadata[provider] != nil {
+            let entry = try #require(settings.configSnapshot.providerConfig(for: provider.instanceID))
+            #expect(entry.enabled == false)
+        }
+        #expect(settings.enabledProvidersOrdered(metadataByProvider: metadata).isEmpty)
+        #expect(settings.refreshFrequency == .oneMinute)
+        #expect(settings.providerDetectionCompleted)
+        #expect(settings.backgroundWorkLowPowerModePreference == .off)
+        #expect(!settings.openAIWebAccessEnabled)
+    }
+
+    @Test
     func `launch with no menu history begins at thirty minutes`() {
         let settings = Self.makeSettingsStore(suite: "AdaptiveRefreshTimerTests-launch", frequency: .adaptive)
         let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
@@ -211,6 +226,42 @@ struct AdaptiveRefreshTimerTests {
     }
 
     @Test
+    func `fixed timer uses global low power interval without changing test sleep override`() throws {
+        let settings = Self.makeSettingsStore(
+            suite: "AdaptiveRefreshTimerTests-fixed-global-low-power",
+            frequency: .fiveMinutes)
+        settings.backgroundWorkLowPowerModePreference = .on
+        let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
+
+        store.restartTimerWithSleepOverrideForTesting(.seconds(10))
+
+        let computedInterval = try #require(store.fixedRefreshIntervalForTesting)
+        #expect(computedInterval == 30 * 60)
+        #expect(store.refreshTimerSleepOverrideForTesting == .seconds(10))
+    }
+
+    @Test
+    func `adaptive timer publishes clamped schedule while preserving test sleep override`() async throws {
+        let settings = Self.makeSettingsStore(
+            suite: "AdaptiveRefreshTimerTests-adaptive-global-low-power",
+            frequency: .adaptive)
+        settings.backgroundWorkLowPowerModePreference = .on
+        let store = Self.makeUsageStore(settings: settings, startupBehavior: .testing)
+        let now = Date()
+        store.noteMenuOpened(at: now.addingTimeInterval(-10 * 60))
+        store.restartTimerWithSleepOverrideForTesting(.seconds(10))
+
+        let sleepDuration = try #require(await UsageStore.nextAdaptiveTimerSleepDuration(for: store))
+
+        let computedInterval = try #require(store.adaptiveRefreshComputedIntervalForTesting)
+        #expect(computedInterval == 30 * 60)
+        #expect(sleepDuration == .seconds(10))
+        let scheduledAt = try #require(store.adaptiveRefreshScheduledAt)
+        #expect(scheduledAt.timeIntervalSince(Date()) > 29 * 60)
+        #expect(scheduledAt.timeIntervalSince(Date()) <= 30 * 60)
+    }
+
+    @Test
     func `fixed cadence advances from scheduled tick instead of refresh completion`() {
         let interval = Duration.milliseconds(100)
         let start = ContinuousClock.now
@@ -394,41 +445,16 @@ struct AdaptiveRefreshTimerTests {
     }
 
     private static func makeSettingsStore(suite: String, frequency: RefreshFrequency) -> SettingsStore {
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        let configStore = testConfigStore(suiteName: suite)
-
-        let settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore(),
-            codexCookieStore: InMemoryCookieHeaderStore(),
-            claudeCookieStore: InMemoryCookieHeaderStore(),
-            cursorCookieStore: InMemoryCookieHeaderStore(),
-            opencodeCookieStore: InMemoryCookieHeaderStore(),
-            factoryCookieStore: InMemoryCookieHeaderStore(),
-            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
-            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
-            kimiTokenStore: InMemoryKimiTokenStore(),
-            augmentCookieStore: InMemoryCookieHeaderStore(),
-            ampCookieStore: InMemoryCookieHeaderStore(),
-            copilotTokenStore: InMemoryCopilotTokenStore(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+        let settings = testSettingsStore(
+            suiteName: suite,
+            config: testConfigWithAllProvidersDisabled(),
+            prepareDefaults: { defaults in
+                // An existing config otherwise opts this fresh fixture into OpenAI web access.
+                defaults.set(false, forKey: "openAIWebAccessEnabled")
+            })
         settings.providerDetectionCompleted = true
         settings.refreshFrequency = frequency
-        Self.disableAllProviders(settings: settings)
         return settings
-    }
-
-    /// Codex is enabled by default; disabling every provider (including it) keeps `refresh()` cheap
-    /// and deterministic in these tests, which care about tick cadence, not provider fetch results.
-    private static func disableAllProviders(settings: SettingsStore) {
-        let metadata = ProviderRegistry.shared.metadata
-        for provider in UsageProvider.allCases {
-            guard let providerMetadata = metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: providerMetadata, enabled: false)
-        }
     }
 
     private static func makeUsageStore(

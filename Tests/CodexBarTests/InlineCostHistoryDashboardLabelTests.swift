@@ -54,6 +54,63 @@ struct InlineCostHistoryDashboardLabelTests {
     }
 
     @Test
+    func `local cost history converts from snapshot currency into preferred currency`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let metadata = try #require(ProviderDefaults.metadata[.claude])
+        let tokenSnapshot = CostUsageTokenSnapshot(
+            sessionTokens: 100,
+            sessionCostUSD: 10,
+            last30DaysTokens: 100,
+            last30DaysCostUSD: 10,
+            currencyCode: "EUR",
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2023-11-15",
+                    inputTokens: 75,
+                    outputTokens: 25,
+                    totalTokens: 100,
+                    costUSD: 10,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ],
+            updatedAt: now)
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .claude,
+            metadata: metadata,
+            snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: tokenSnapshot,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: true,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            preferredCurrencyCode: "USD",
+            now: now))
+
+        let expected = UsageFormatter.convertedCostString(
+            10,
+            preferredCurrency: "USD",
+            providerCurrency: "EUR")
+        let expectedValue = UsageFormatter.convertedCost(
+            10,
+            preferredCurrency: "USD",
+            providerCurrency: "EUR").value
+        #expect(model.inlineUsageDashboard?.currencyCode == "USD")
+        #expect(model.inlineUsageDashboard?.kpis.first?.value == expected)
+        #expect(model.inlineUsageDashboard?.points.first?.value == expectedValue)
+        #expect(model.inlineUsageDashboard?.points.first?.accessibilityValue == "2023-11-15: \(expected)")
+    }
+
+    @Test
     func `local cost history KPI titles preserve one day and dynamic windows`() throws {
         let now = Date(timeIntervalSince1970: 1_700_179_200)
         let metadata = try #require(ProviderDefaults.metadata[.claude])
@@ -273,6 +330,73 @@ struct InlineCostHistoryDashboardLabelTests {
     }
 
     @Test
+    func `Codex inline cost history preserves zero value calendar days`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let now = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 8,
+            day: 24,
+            hour: 12)))
+        let metadata = try #require(ProviderDefaults.metadata[.codex])
+        let tokenSnapshot = CostUsageTokenSnapshot(
+            sessionTokens: 400,
+            sessionCostUSD: 4,
+            last30DaysTokens: 700,
+            last30DaysCostUSD: 7,
+            historyDays: 4,
+            daily: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-08-21",
+                    inputTokens: 250,
+                    outputTokens: 50,
+                    totalTokens: 300,
+                    costUSD: 3,
+                    modelsUsed: ["test-model"],
+                    modelBreakdowns: nil),
+                CostUsageDailyReport.Entry(
+                    date: "2026-08-24",
+                    inputTokens: 350,
+                    outputTokens: 50,
+                    totalTokens: 400,
+                    costUSD: 4,
+                    modelsUsed: ["test-model"],
+                    modelBreakdowns: nil),
+            ],
+            updatedAt: now)
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .codex,
+            metadata: metadata,
+            snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: tokenSnapshot,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: true,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        let points = try #require(model.inlineUsageDashboard?.points)
+        #expect(points.map(\.id) == ["2026-08-21", "2026-08-22", "2026-08-23", "2026-08-24"])
+        #expect(points.map(\.value) == [3, 0, 0, 4])
+        #expect(points.map(\.accessibilityValue) == [
+            "2026-08-21: $3.00",
+            "2026-08-22: $0.00",
+            "2026-08-23: $0.00",
+            "2026-08-24: $4.00",
+        ])
+    }
+
+    @Test
     func `cursor metered-only snapshot remains visible in inline dashboard`() throws {
         let now = Date(timeIntervalSince1970: 1_700_179_200)
         let metadata = try #require(ProviderDefaults.metadata[.cursor])
@@ -312,30 +436,18 @@ struct InlineCostHistoryDashboardLabelTests {
     }
 
     @Test
-    func `token-only inline dashboard leaves currencyCode nil`() throws {
+    func `token-only provider details use token chart units`() throws {
         let now = Date(timeIntervalSince1970: 1_700_179_200)
         let metadata = try #require(ProviderDefaults.metadata[.zai])
-        let modelUsage = ZaiModelUsageData(
-            xTime: ["2023-11-17 00:00"],
-            modelDataList: [
-                ZaiModelDataItem(modelName: "glm-test", tokensUsage: [123]),
-            ])
-        let snapshot = UsageSnapshot(
-            primary: nil,
-            secondary: nil,
-            tertiary: nil,
-            zaiUsage: ZaiUsageSnapshot(
-                tokenLimit: nil,
-                timeLimit: nil,
-                planName: nil,
-                modelUsage: modelUsage,
-                updatedAt: now),
-            updatedAt: now,
-            identity: ProviderIdentitySnapshot(
-                providerID: .zai,
-                accountEmail: nil,
-                accountOrganization: nil,
-                loginMethod: nil))
+        let details = try ProviderDetailSection(
+            title: "Hourly tokens",
+            rows: [.init(label: "glm-test", value: "123")],
+            chart: .init(
+                kind: .bars,
+                title: "Hourly tokens",
+                unit: "tokens",
+                points: [.init(label: "2023-11-17 00:00", value: 123)]))
+        let snapshot = UsageSnapshot(primary: nil, secondary: nil, details: [details], updatedAt: now)
 
         let model = UsageMenuCardView.Model.make(.init(
             provider: .zai,
@@ -356,7 +468,7 @@ struct InlineCostHistoryDashboardLabelTests {
             showOptionalCreditsAndExtraUsage: true,
             hidePersonalInfo: false,
             now: now))
-        let dashboard = try #require(model.inlineUsageDashboard)
-        #expect(dashboard.currencyCode == nil)
+        #expect(model.inlineUsageDashboard == nil)
+        #expect(model.providerDetails.last?.chart?.unit == "tokens")
     }
 }

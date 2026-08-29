@@ -217,7 +217,7 @@ struct TTYCommandRunnerEnvTests {
         let stateHome = URL(fileURLWithPath: "/tmp/codexbar status \"state\"", isDirectory: true)
         let args = CodexStatusProbeIsolation.codexArguments(stateHome: stateHome)
 
-        #expect(args.starts(with: ["-s", "read-only", "-a", "untrusted"]))
+        #expect(args.starts(with: ["-s", "read-only", "-a", "never"]))
         #expect(args.contains("history.persistence=\"none\""))
         #expect(args.contains("experimental_thread_store={type=\"in_memory\",id=\"codexbar-status\"}"))
         #expect(args.contains("sqlite_home=\"/tmp/codexbar status \\\"state\\\"\""))
@@ -250,6 +250,29 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
+    func `fast process exit drains buffered PTY output`() throws {
+        let expected = "pty-drain-race"
+        let runner = TTYCommandRunner()
+
+        for iteration in 0..<50 {
+            let result = try runner.run(
+                binary: "/bin/echo",
+                send: "",
+                options: .init(
+                    timeout: Self.harnessPTYTimeout,
+                    extraArgs: [expected],
+                    initialDelay: 0.05,
+                    stopOnSubstrings: [expected],
+                    settleAfterStop: 0,
+                    returnOnEmptyProcessExit: true))
+            let clean = result.text.replacingOccurrences(of: "\r", with: "")
+            #expect(
+                clean.contains(expected),
+                "PTY output was missing on iteration \(iteration); completion: \(result.completion)")
+        }
+    }
+
+    @Test
     func `claude runner keeps normal working directory by default`() throws {
         let runner = TTYCommandRunner()
         let fakeClaude = try Self.makeFakeClaudeCLI()
@@ -272,7 +295,7 @@ struct TTYCommandRunnerEnvTests {
             options: .init(
                 timeout: Self.harnessPTYTimeout,
                 stopOnSubstrings: ["deep-link-disabled"],
-                useClaudeProbeWorkingDirectory: true))
+                useProviderProbeWorkingDirectory: true))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
 
         #expect(clean.contains("deep-link-disabled"))
@@ -292,7 +315,7 @@ struct TTYCommandRunnerEnvTests {
                 timeout: Self.harnessPTYTimeout,
                 baseEnvironment: env,
                 stopOnSubstrings: ["deep-link-disabled"],
-                useClaudeProbeWorkingDirectory: true))
+                useProviderProbeWorkingDirectory: true))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
 
         #expect(clean.contains("deep-link-disabled"))

@@ -114,7 +114,7 @@ struct AgentSessionMenuDescriptorTests {
     }
 
     @Test
-    func `adaptive-only metadata reads require a detected agent process`() {
+    func `adaptive-only metadata reads require an agent or trusted codex app server`() {
         #expect(!LocalAgentSessionScanner.shouldScanSessionMetadata(
             hasAgentProcesses: false,
             includeFileOnlySessions: false))
@@ -124,6 +124,10 @@ struct AgentSessionMenuDescriptorTests {
         #expect(LocalAgentSessionScanner.shouldScanSessionMetadata(
             hasAgentProcesses: false,
             includeFileOnlySessions: true))
+        #expect(LocalAgentSessionScanner.shouldScanSessionMetadata(
+            hasAgentProcesses: false,
+            includeFileOnlySessions: false,
+            hasTrustedCodexAppServer: true))
     }
 
     @Test
@@ -206,6 +210,27 @@ struct AgentSessionMenuDescriptorTests {
             .contains("⌘ Fix Claude reauthorization —"))
         #expect(Self.actionTitle(for: session, style: .descriptiveAndProject, now: now)
             .contains("⌘ Fix Claude reauthorization · alpha —"))
+    }
+
+    @Test
+    func `Pi-family session rows use the dedicated glyph and dialect tag`() {
+        let now = Date(timeIntervalSince1970: 1000)
+        let session = AgentSession(
+            id: "omp",
+            provider: .pi,
+            dialect: .omp,
+            source: .cli,
+            state: .active,
+            pid: 42,
+            cwd: "/Users/test/alpha",
+            projectName: "alpha",
+            startedAt: nil,
+            lastActivityAt: now,
+            transcriptPath: nil,
+            host: "local-mac")
+
+        let title = Self.actionTitle(for: session, style: .project, now: now)
+        #expect(title.contains("π alpha — omp · cli · 0s"))
     }
 
     @Test
