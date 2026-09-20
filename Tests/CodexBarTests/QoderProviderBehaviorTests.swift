@@ -152,7 +152,6 @@ struct QoderProviderBehaviorTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -192,7 +191,6 @@ struct QoderProviderBehaviorTests {
             snapshot: snapshot,
             credits: nil,
             creditsError: nil,
-            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
@@ -1013,7 +1011,8 @@ extension QoderProviderBehaviorTests {
 
         #expect(depletedSnapshot.primary?.windowMinutes == nil)
         #expect(restoredPrimary.windowMinutes == nil)
-        #expect(store.weeklyPace(provider: .qoder, window: restoredPrimary, now: Date()) == nil)
+        #expect(store
+            .weeklyPace(provider: .qoder, window: restoredPrimary, dataConfidence: .unknown, now: Date()) == nil)
 
         for snapshot in [depletedSnapshot, restoredSnapshot] {
             store.handleSessionQuotaTransition(provider: .qoder, snapshot: snapshot)

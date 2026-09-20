@@ -45,6 +45,7 @@
 "hooks_any_provider" = "Nhà cung cấp bất kỳ";
 "hooks_threshold" = "Chạy khi mức sử dụng ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Tệp thực thi";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Đối số";
 "hooks_argument_placeholder" = "Đối số";
@@ -149,6 +150,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Chi phí";
+"Token history" = "Lịch sử token";
+"Local token history · dollar costs unavailable" = "Lịch sử token cục bộ · chưa có chi phí bằng đô la";
+"Partial local history · recorded token subtotal" = "Lịch sử cục bộ một phần · tổng phụ token đã ghi nhận";
+"Local token history is unavailable or incomplete." = "Lịch sử token cục bộ không có hoặc chưa đầy đủ.";
 "Could not add Codex account" = "Không thể thêm tài khoản Codex";
 "Could not open Terminal for Gemini" = "Không thể mở Terminal cho Gemini";
 "Could not start claude /login" = "Không thể bắt đầu claude /đăng nhập";
@@ -239,6 +244,7 @@
 "No cost history data." = "Không có dữ liệu lịch sử chi phí.";
 "No data available" = "Không có dữ liệu";
 "No data yet" = "Chưa có dữ liệu";
+"Workspaces" = "Không gian làm việc";
 "No enabled providers available for Overview." = "Không có nhà cung cấp nào được bật cho Tổng quan.";
 "No providers selected" = "Chưa có nhà cung cấp nào được chọn";
 "No token accounts yet." = "Chưa có tài khoản token.";
@@ -510,7 +516,6 @@
 "provider_accent_color_reset" = "Dùng mặc định";
 "quota_warnings_title" = "Hạn mức cảnh báo";
 "quota_warning_session" = "phiên";
-"quota_warning_session_capitalized" = "Phiên";
 "quota_warning_weekly" = "hàng tuần";
 "quota_warning_weekly_capitalized" = "Hàng tuần";
 "quota_warning_notification_title" = "%1$@ %2$@ Hạn mức thấp";
@@ -663,6 +668,9 @@
 "surprise_me_subtitle" = "Kiểm tra xem bạn có thích các đại lý của mình vui vẻ ở đó không.";
 "hide_personal_info_title" = "Ẩn thông tin cá nhân";
 "hide_personal_info_subtitle" = "Địa chỉ email tối nghĩa trong thanh menu và giao diện người dùng menu.";
+"hide_cost_history_identity_subtitle" = "Đồng thời ẩn tên và đường dẫn dự án/nguồn trong lịch sử chi phí mà không thay đổi dữ liệu đã lưu.";
+"Project %d" = "Dự án %d";
+"Source %d" = "Nguồn %d";
 "show_provider_storage_usage_title" = "Hiển thị Nhà cung cấp bộ nhớ Mức sử dụng";
 "show_provider_storage_usage_subtitle" = "Hiển thị ổ đĩa cục bộ Mức sử dụng trong menu. Quét các đường dẫn thuộc quyền sở hữu của Nhà cung cấp đã biết ở chế độ nền.";
 "section_keychain_access" = "Keychain quyền truy cập";
@@ -874,6 +882,12 @@
 "usage_percent_suffix_used" = "đã sử dụng";
 "Store multiple DeepSeek API keys." = "Lưu trữ nhiều khóa DeepSeek API.";
 "This week" = "Tuần này";
+"Current window" = "Cửa sổ hiện tại";
+"Last week" = "Tuần trước";
+"%d weeks ago" = "%d tuần trước";
+"Previous window" = "Cửa sổ trước";
+"%d windows ago" = "%d cửa sổ trước";
+"Recent windows" = "Cửa sổ gần đây";
 "Week" = "Tuần";
 "Month" = "Tháng";
 "Models" = "Mô hình";
@@ -933,6 +947,8 @@
 "Overage" = "Vượt mức";
 "Activity" = "Hoạt động";
 "Copied" = "Đã sao chép";
+"Managed by Homebrew" = "Được quản lý bằng Homebrew";
+"Copy update command" = "Sao chép lệnh cập nhật";
 "Copy error" = "Lỗi sao chép";
 "Copy path" = "Sao chép đường dẫn";
 "Extra usage spent" = "Thêm Mức sử dụng đã chi tiêu";
@@ -1045,8 +1061,8 @@
 "Source" = "Nguồn";
 "State" = "Trạng thái";
 "Unavailable" = "Không có sẵn";
-"Weekly" = "Không phát hiện được";
-"not detected" = "hàng tuần";
+"Weekly" = "Hàng tuần";
+"not detected" = "Không phát hiện được";
 "Estimated from local Codex logs for the selected account." = "Được ước tính từ nhật ký Codex cục bộ cho tài khoản đã chọn.";
 "minimax_usage_amount_format" = "Mức sử dụng : %@ / %@";
 "minimax_used_percent_format" = "Đã sử dụng %@";
@@ -1426,6 +1442,33 @@
 "Cost today unavailable" = "Chi phí hôm nay: Không có sẵn";
 "30-day cost unavailable" = "Chi phí 30 ngày: Không có sẵn";
 "Resets" = "Lần đặt lại";
+"codex_workspaces_cost_unavailable" = "Không có dữ liệu chi phí";
+"codex_workspaces_elevated_usage" = "Mức sử dụng tăng";
+"codex_workspaces_estimated_cost_short" = "Chi phí ước tính";
+"codex_workspaces_estimated_cost_value" = "Ước tính %@";
+"codex_workspaces_estimated_local_logs" = "Ước tính từ nhật ký Codex cục bộ";
+"codex_workspaces_failed_read_logs" = "Không thể đọc nhật ký Codex";
+"codex_workspaces_high_usage" = "Mức sử dụng cao";
+"codex_workspaces_indexing_local_logs" = "Đang lập chỉ mục nhật ký Codex cục bộ…";
+"codex_workspaces_indexing_projects" = "Đang lập chỉ mục dự án…";
+"codex_workspaces_local_codex_chat" = "Cuộc trò chuyện Codex cục bộ";
+"codex_workspaces_model" = "Mô hình";
+"codex_workspaces_no_local_usage" = "Chưa có dữ liệu sử dụng Codex cục bộ";
+"codex_workspaces_no_sessions" = "Không có phiên nào trong không gian làm việc này";
+"codex_workspaces_normal_usage" = "Mức sử dụng bình thường";
+"codex_workspaces_partial_data" = "Dữ liệu một phần";
+"codex_workspaces_refresh_usage_data" = "Làm mới dữ liệu sử dụng";
+"codex_workspaces_retry" = "Thử lại";
+"codex_workspaces_saving_project_index" = "Đang lưu chỉ mục dự án…";
+"codex_workspaces_scanning_logs" = "Đang quét nhật ký Codex…";
+"codex_workspaces_session" = "Phiên";
+"codex_workspaces_session_count" = "Phiên: %@";
+"codex_workspaces_sessions" = "Phiên";
+"codex_workspaces_started" = "Đã bắt đầu";
+"codex_workspaces_title" = "Không gian làm việc";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_tokens" = "Token";
+"codex_workspaces_top_model" = "Mô hình hàng đầu";
 "Finish now" = "Hoàn tất ngay";
 "Continue in background" = "Tiếp tục trong nền";
 
@@ -1482,6 +1525,7 @@
 "Total usage" = "Tổng mức sử dụng";
 "claude_oauth_keychain_access_revoked" = "Quyền truy cập Chuỗi khóa Claude đã bị thu hồi do Claude Code xoay vòng mã thông báo. Nhấp vào Làm mới để cấp lại quyền truy cập hoặc chuyển nguồn sử dụng Claude sang CLI/Web.";
 "claude_showing_last_known_usage" = "Đang hiển thị mức sử dụng đã biết gần nhất, được ghi nhận %@.";
+"claude_limited_usage_detail" = "Thông tin sử dụng ít chi tiết";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1537,4 +1581,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "Phiên gần cạn";
 "menu_bar_layout_conditional_default_either_high" = "Phiên hoặc tuần đang ở mức cao";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Tuần theo mô hình đã dùng trên 60%";
+"Visible usage items" = "Mục sử dụng hiển thị";
+"Restore Defaults" = "Khôi phục mặc định";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Chọn các hàng sử dụng xuất hiện trong menu của nhà cung cấp này, bản xem trước Cài đặt và Tổng quan.";
+"%@ (unavailable)" = "%@ (không khả dụng)";
 "Spending cap, not balance" = "Hạn mức chi tiêu, không phải số dư";
+
+"Color Pace Indicator" = "Tô màu nhịp sử dụng";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Xanh khi mức sử dụng chậm hơn nhịp dự kiến (còn dư); đỏ khi nhanh hơn (nguy cơ hết hạn mức sớm).";
+"%@ weekly" = "%@ hàng tuần";
+
+"agent_sessions_hide_unreachable_title" = "Ẩn máy chủ không thể truy cập";
+"agent_sessions_hide_unreachable_subtitle" = "Ẩn máy chủ khi không lấy được các phiên của máy chủ đó.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Chia sẻ tổng quan mức sử dụng…";
+"Usage snapshot unavailable" = "Không có tổng quan mức sử dụng";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar không thể chuẩn bị tổng quan mức sử dụng để chia sẻ. Hãy làm mới Mức sử dụng và chi phí rồi thử lại.";
+"Incomplete" = "Chưa đầy đủ";
+"Est. subtotal (%@): %@" = "Tổng phụ ước tính (%@): %@";
+"Excluded requests with missing final usage: %d" = "Yêu cầu bị loại trừ do thiếu dữ liệu sử dụng cuối cùng: %d";
+
+"overview_layout_title" = "Bố cục Tổng quan";
+"overview_layout_subtitle" = "Chọn lượng thông tin hiển thị trong Tổng quan.";
+"overview_layout_detailed" = "Chi tiết";
+"overview_layout_compact" = "Gọn";
+
+"section_widgets" = "Tiện ích";
+"account_widgets_title" = "Cập nhật tài khoản cho tiện ích";
+"account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";

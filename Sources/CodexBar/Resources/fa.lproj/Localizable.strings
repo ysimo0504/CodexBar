@@ -133,6 +133,10 @@
 "Cookie: …" = "کوکی: ...";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "هزینه";
+"Token history" = "تاریخچهٔ توکن‌ها";
+"Local token history · dollar costs unavailable" = "تاریخچهٔ محلی توکن‌ها · هزینه‌های دلاری در دسترس نیست";
+"Partial local history · recorded token subtotal" = "تاریخچهٔ محلی ناقص · جمع جزئی توکن‌های ثبت‌شده";
+"Local token history is unavailable or incomplete." = "تاریخچهٔ محلی توکن‌ها در دسترس نیست یا ناقص است.";
 "Could not add Codex account" = "نتوانستم حساب Codex اضافه کنم";
 "Could not open Terminal for Gemini" = "نتوانستم ترمینال را برای Gemini باز کنم";
 "Could not start claude /login" = "نتوانستم کلود را شروع /login";
@@ -224,6 +228,7 @@
 "No cost history data." = "داده های تاریخچه رایگان.";
 "No data available" = "داده ای در دسترس نیست";
 "No data yet" = "هنوز داده ای وجود ندارد";
+"Workspaces" = "فضاهای کاری";
 "No enabled providers available for Overview." = "هیچ ارائه دهنده فعالی برای مرور کلی در دسترس نیست.";
 "No providers selected" = "هیچ ارائه دهنده ای انتخاب نشده است";
 "No token accounts yet." = "هنوز حساب توکنی ندارم.";
@@ -499,7 +504,6 @@
 "provider_accent_color_reset" = "استفاده از پیش‌فرض";
 "quota_warnings_title" = "هشدارهای سهمیه";
 "quota_warning_session" = "جلسه";
-"quota_warning_session_capitalized" = "جلسه";
 "quota_warning_weekly" = "هفتگی";
 "quota_warning_weekly_capitalized" = "هفتگی";
 "quota_warning_notification_title" = "سهمیه %2$@ در %1$@ رو به اتمام است";
@@ -565,6 +569,7 @@
 "hooks_any_provider" = "هر ارائه‌دهنده";
 "hooks_threshold" = "اجرا در مصرف ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "فایل اجرایی";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "آرگومان‌ها";
 "hooks_argument_placeholder" = "آرگومان";
@@ -673,6 +678,9 @@
 "surprise_me_subtitle" = "بررسی کن که آیا دوست داری مأمورانت آنجا خوش بگذرانند یا نه.";
 "hide_personal_info_title" = "مخفی کردن اطلاعات شخصی";
 "hide_personal_info_subtitle" = "آدرس های ایمیل مبهم در نوار منو و رابط کاربری منو.";
+"hide_cost_history_identity_subtitle" = "نام و مسیر پروژه‌ها و منابع را در تاریخچهٔ هزینه‌ها نیز بدون تغییر داده‌های ذخیره‌شده پنهان می‌کند.";
+"Project %d" = "پروژهٔ %d";
+"Source %d" = "منبع %d";
 "show_provider_storage_usage_title" = "استفاده از ذخیره سازی ارائه دهنده را نمایش دهید";
 "show_provider_storage_usage_subtitle" = "استفاده محلی از دیسک را در منوها نمایش دهید. مسیرهای شناخته شده متعلق به ارائه دهندگان را در پس زمینه اسکن می کند.";
 "section_keychain_access" = "دسترسی Keychain";
@@ -884,6 +892,12 @@
 "usage_percent_suffix_used" = "استفاده شده";
 "Store multiple DeepSeek API keys." = "چند کلید DeepSeek API را ذخیره کنید.";
 "This week" = "این هفته";
+"Current window" = "پنجره فعلی";
+"Last week" = "هفته گذشته";
+"%d weeks ago" = "%d هفته پیش";
+"Previous window" = "پنجره قبلی";
+"%d windows ago" = "%d پنجره پیش";
+"Recent windows" = "پنجره‌های اخیر";
 "Week" = "هفته";
 "Month" = "ماه";
 "Models" = "مدل ها";
@@ -944,6 +958,8 @@
 "Overage" = "اضافه هزینه";
 "Activity" = "فعالیت ها";
 "Copied" = "کپی شده";
+"Managed by Homebrew" = "مدیریت‌شده توسط Homebrew";
+"Copy update command" = "کپی فرمان به‌روزرسانی";
 "Copy error" = "خطای کپی";
 "Copy path" = "مسیر کپی";
 "Extra usage spent" = "استفاده اضافی صرف شده";
@@ -1429,6 +1445,33 @@
 "Cost today unavailable" = "هزینهٔ امروز: در دسترس نیست";
 "30-day cost unavailable" = "هزینهٔ ۳۰ روز: در دسترس نیست";
 "Resets" = "بازنشانی‌ها";
+"codex_workspaces_estimated_cost_short" = "هزینهٔ تخمینی";
+"codex_workspaces_estimated_cost_value" = "تخمینی %@";
+"codex_workspaces_estimated_local_logs" = "برآوردشده از گزارش‌های محلی Codex";
+"codex_workspaces_failed_read_logs" = "خواندن گزارش‌های Codex ناموفق بود";
+"codex_workspaces_indexing_local_logs" = "در حال فهرست‌سازی گزارش‌های محلی Codex…";
+"codex_workspaces_indexing_projects" = "در حال فهرست‌سازی پروژه‌ها…";
+"codex_workspaces_local_codex_chat" = "گفتگوی محلی Codex";
+"codex_workspaces_no_local_usage" = "هنوز استفادهٔ محلی از Codex وجود ندارد";
+"codex_workspaces_saving_project_index" = "در حال ذخیرهٔ فهرست پروژه…";
+"codex_workspaces_scanning_logs" = "در حال پویش گزارش‌های Codex…";
+"codex_workspaces_session_count" = "نشست‌ها: %@";
+"codex_workspaces_sessions" = "نشست‌ها";
+"codex_workspaces_title" = "فضاهای کاری";
+"codex_workspaces_tokens" = "توکن‌ها";
+"codex_workspaces_token_count_accessibility" = "%@ توکن";
+"codex_workspaces_top_model" = "مدل برتر";
+"codex_workspaces_cost_unavailable" = "هزینه در دسترس نیست";
+"codex_workspaces_refresh_usage_data" = "تازه‌سازی داده‌های استفاده";
+"codex_workspaces_retry" = "دوباره امتحان کنید";
+"codex_workspaces_partial_data" = "داده‌های جزئی";
+"codex_workspaces_high_usage" = "استفادهٔ زیاد";
+"codex_workspaces_elevated_usage" = "استفادهٔ بالاتر";
+"codex_workspaces_normal_usage" = "استفادهٔ عادی";
+"codex_workspaces_no_sessions" = "در این فضای کاری نشستی وجود ندارد";
+"codex_workspaces_session" = "نشست";
+"codex_workspaces_model" = "مدل";
+"codex_workspaces_started" = "آغازشده";
 "Finish now" = "اکنون تمام شود";
 "Continue in background" = "ادامه در پس‌زمینه";
 
@@ -1485,6 +1528,7 @@
 "Total usage" = "مصرف کل";
 "claude_oauth_keychain_access_revoked" = "دسترسی به Keychain کلود با چرخش توکن Claude Code لغو شد. برای اعطای مجدد دسترسی روی «تازه‌سازی» کلیک کنید، یا منبع استفاده Claude را به CLI/Web تغییر دهید.";
 "claude_showing_last_known_usage" = "آخرین میزان استفاده شناخته‌شده که در %@ ثبت شده نمایش داده می‌شود.";
+"claude_limited_usage_detail" = "جزئیات استفاده محدود است";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1540,4 +1584,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "نشست تقریباً تمام شده";
 "menu_bar_layout_conditional_default_either_high" = "نشست یا هفته در سطح بالا";
 "menu_bar_layout_conditional_default_scoped_weekly" = "پنجره هفتگی مدل بیش از ۶۰٪";
+"Visible usage items" = "موارد قابل مشاهده استفاده";
+"Restore Defaults" = "بازیابی پیش‌فرض‌ها";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "انتخاب کنید کدام ردیف‌های استفاده در منوی این ارائه‌دهنده، پیش‌نمایش تنظیمات و نمای کلی نمایش داده شوند.";
+"%@ (unavailable)" = "%@ (در دسترس نیست)";
 "Spending cap, not balance" = "سقف هزینه، نه موجودی";
+
+"Color Pace Indicator" = "رنگ‌بندی آهنگ مصرف";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "سبز وقتی مصرف از آهنگ مورد انتظار عقب‌تر است (ذخیره)؛ قرمز وقتی جلوتر است (خطر تمام شدن زودهنگام سهمیه).";
+"%@ weekly" = "%@ هفتگی";
+
+"agent_sessions_hide_unreachable_title" = "پنهان کردن میزبان‌های در دسترس نبودنی";
+"agent_sessions_hide_unreachable_subtitle" = "میزبان‌ها را در صورت ناموفق بودن دریافت نشست‌هایشان پنهان کنید.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "اشتراک‌گذاری نمای کلی استفاده…";
+"Usage snapshot unavailable" = "نمای کلی استفاده در دسترس نیست";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar نتوانست نمای کلی استفاده قابل اشتراک‌گذاری را آماده کند. استفاده و هزینه را تازه‌سازی کنید و دوباره امتحان کنید.";
+"Incomplete" = "ناقص";
+"Est. subtotal (%@): %@" = "جمع جزئی تخمینی (%@): %@";
+"Excluded requests with missing final usage: %d" = "درخواست‌های حذف‌شده به دلیل نبود داده‌های مصرف نهایی: %d";
+
+"overview_layout_title" = "چیدمان نمای کلی";
+"overview_layout_subtitle" = "میزان اطلاعات نمایش‌داده‌شده در نمای کلی را انتخاب کنید.";
+"overview_layout_detailed" = "با جزئیات";
+"overview_layout_compact" = "فشرده";
+
+"section_widgets" = "ویجت‌ها";
+"account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
+"account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";

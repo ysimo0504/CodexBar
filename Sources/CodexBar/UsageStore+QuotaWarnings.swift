@@ -13,18 +13,6 @@ extension UsageStore {
         /// does not clobber each other or the primary session/weekly lanes. `nil` for the
         /// primary session and weekly lanes.
         let windowID: String?
-
-        init(
-            provider: UsageProvider,
-            window: QuotaWarningWindow,
-            accountDiscriminator: String?,
-            windowID: String? = nil)
-        {
-            self.provider = provider
-            self.window = window
-            self.accountDiscriminator = accountDiscriminator
-            self.windowID = windowID
-        }
     }
 
     struct QuotaWarningState {
@@ -217,6 +205,8 @@ extension UsageStore {
             self.quotaWarningState.removeValue(forKey: key)
             return
         }
+        // Claude promotes weekly usage to primary when its session payload is missing.
+        guard provider != .claude || window != .session || Self.isSessionWindow(rateWindow) else { return }
         guard !rateWindow.isSyntheticPlaceholder else { return }
 
         let thresholds = self.settings.resolvedQuotaWarningThresholds(provider: provider, window: window)
@@ -259,11 +249,8 @@ extension UsageStore {
     }
 
     private func clearQuotaWarningState(provider: UsageProvider, window: QuotaWarningWindow) {
-        let keys = self.quotaWarningState.keys.filter {
-            $0.provider == provider && $0.window == window
-        }
-        for key in keys {
-            self.quotaWarningState.removeValue(forKey: key)
+        self.quotaWarningState = self.quotaWarningState.filter {
+            $0.key.provider != provider || $0.key.window != window
         }
     }
 

@@ -45,6 +45,7 @@
 "hooks_any_provider" = "Любой провайдер";
 "hooks_threshold" = "Запускать при использовании ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Исполняемый файл";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Аргументы";
 "hooks_argument_placeholder" = "Аргумент";
@@ -150,6 +151,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Стоимость";
+"Token history" = "История токенов";
+"Local token history · dollar costs unavailable" = "Локальная история токенов · стоимость в долларах недоступна";
+"Partial local history · recorded token subtotal" = "Неполная локальная история · подытог записанных токенов";
+"Local token history is unavailable or incomplete." = "Локальная история токенов недоступна или неполна.";
 "Could not add Codex account" = "Не удалось добавить аккаунт Codex";
 "Could not open Terminal for Gemini" = "Не удалось открыть Terminal для Gemini.";
 "Could not start claude /login" = "Не удалось запустить claude /login";
@@ -241,6 +246,7 @@
 "No cost history data." = "Нет истории расходов.";
 "No data available" = "Нет доступных данных";
 "No data yet" = "Данных пока нет";
+"Workspaces" = "Рабочие пространства";
 "No enabled providers available for Overview." = "Нет включённых провайдеров для обзора.";
 "No providers selected" = "Провайдеры не выбраны";
 "No token accounts yet." = "Токен-аккаунтов пока нет.";
@@ -515,7 +521,6 @@
 "provider_accent_color_reset" = "Использовать по умолчанию";
 "quota_warnings_title" = "Предупреждения о квотах";
 "quota_warning_session" = "сеанс";
-"quota_warning_session_capitalized" = "Сеанс";
 "quota_warning_weekly" = "неделя";
 "quota_warning_weekly_capitalized" = "Неделя";
 "quota_warning_notification_title" = "Низкая квота %1$@ %2$@";
@@ -668,6 +673,9 @@
 "surprise_me_subtitle" = "Включите, если хотите немного оживить индикаторы агентов в строке меню.";
 "hide_personal_info_title" = "Скрыть личную информацию";
 "hide_personal_info_subtitle" = "Скрывает email-адреса в строке меню и интерфейсе меню.";
+"hide_cost_history_identity_subtitle" = "Также скрывает названия и пути проектов и источников в истории расходов, не изменяя сохранённые данные.";
+"Project %d" = "Проект %d";
+"Source %d" = "Источник %d";
 "show_provider_storage_usage_title" = "Показать использование хранилища провайдера";
 "show_provider_storage_usage_subtitle" = "Показывать использование локального диска в меню. Сканирует известные пути, принадлежащие провайдеру, в фоновом режиме.";
 "section_keychain_access" = "Доступ к Keychain";
@@ -879,6 +887,12 @@
 "usage_percent_suffix_used" = "использовано";
 "Store multiple DeepSeek API keys." = "Хранить несколько API-ключей DeepSeek.";
 "This week" = "На этой неделе";
+"Current window" = "Текущее окно";
+"Last week" = "Прошлая неделя";
+"%d weeks ago" = "%d нед. назад";
+"Previous window" = "Предыдущее окно";
+"%d windows ago" = "%d окн. назад";
+"Recent windows" = "Недавние окна";
 "Week" = "неделя";
 "Month" = "Месяц";
 "Models" = "Модели";
@@ -939,6 +953,8 @@
 "Overage" = "Перерасход";
 "Activity" = "Активность";
 "Copied" = "Скопировано";
+"Managed by Homebrew" = "Управляется через Homebrew";
+"Copy update command" = "Скопировать команду обновления";
 "Copy error" = "Ошибка копирования";
 "Copy path" = "Копировать путь";
 "Extra usage spent" = "Потрачено доп. использования";
@@ -1427,6 +1443,33 @@
 "Cost today unavailable" = "Расход сегодня: Недоступно";
 "30-day cost unavailable" = "Расход за 30 дней: Недоступно";
 "Resets" = "Сбросы";
+"codex_workspaces_cost_unavailable" = "Стоимость недоступна";
+"codex_workspaces_elevated_usage" = "Повышенное использование";
+"codex_workspaces_estimated_cost_short" = "Оцен. стоимость";
+"codex_workspaces_estimated_cost_value" = "оцен. %@";
+"codex_workspaces_estimated_local_logs" = "Оценка по локальным журналам Codex";
+"codex_workspaces_failed_read_logs" = "Не удалось прочитать журналы Codex";
+"codex_workspaces_high_usage" = "Высокое использование";
+"codex_workspaces_indexing_local_logs" = "Индексирование локальных журналов Codex…";
+"codex_workspaces_indexing_projects" = "Индексирование проектов…";
+"codex_workspaces_local_codex_chat" = "Локальный чат Codex";
+"codex_workspaces_model" = "Модель";
+"codex_workspaces_no_local_usage" = "Локальных данных об использовании Codex пока нет";
+"codex_workspaces_no_sessions" = "В этом рабочем пространстве нет сеансов";
+"codex_workspaces_normal_usage" = "Обычное использование";
+"codex_workspaces_partial_data" = "Частичные данные";
+"codex_workspaces_refresh_usage_data" = "Обновить данные об использовании";
+"codex_workspaces_retry" = "Повторить попытку";
+"codex_workspaces_saving_project_index" = "Сохранение индекса проектов…";
+"codex_workspaces_scanning_logs" = "Сканирование журналов Codex…";
+"codex_workspaces_session" = "Сеанс";
+"codex_workspaces_session_count" = "Сеансы: %@";
+"codex_workspaces_sessions" = "Сеансы";
+"codex_workspaces_started" = "Начат";
+"codex_workspaces_title" = "Рабочие пространства";
+"codex_workspaces_token_count_accessibility" = "%@ токенов";
+"codex_workspaces_tokens" = "Токены";
+"codex_workspaces_top_model" = "Основная модель";
 "Finish now" = "Завершить сейчас";
 "Continue in background" = "Продолжить в фоновом режиме";
 
@@ -1483,6 +1526,7 @@
 "Total usage" = "Общее использование";
 "claude_oauth_keychain_access_revoked" = "Доступ к Связке ключей Claude был отозван из-за ротации токена в Claude Code. Нажмите «Обновить», чтобы повторно предоставить доступ, или переключите источник использования Claude на CLI/Web.";
 "claude_showing_last_known_usage" = "Показаны последние известные данные об использовании (получены %@).";
+"claude_limited_usage_detail" = "Ограниченная детализация использования";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1537,4 +1581,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "Сессия почти исчерпана";
 "menu_bar_layout_conditional_default_either_high" = "Сессия или неделя на высоком уровне";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Недельное окно модели более 60 %";
+"Visible usage items" = "Видимые показатели использования";
+"Restore Defaults" = "Восстановить настройки по умолчанию";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Выберите, какие строки использования отображаются в меню этого провайдера, в предпросмотре настроек и в обзоре.";
+"%@ (unavailable)" = "%@ (недоступно)";
 "Spending cap, not balance" = "Лимит расходов, не баланс";
+
+"Color Pace Indicator" = "Цветовая индикация темпа";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелёный — расход ниже ожидаемого темпа (есть запас); красный — выше (риск досрочного исчерпания квоты).";
+"%@ weekly" = "%@ за неделю";
+
+"agent_sessions_hide_unreachable_title" = "Скрывать недоступные узлы";
+"agent_sessions_hide_unreachable_subtitle" = "Скрывать узлы, если не удалось получить их сеансы.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Поделиться сводкой использования…";
+"Usage snapshot unavailable" = "Сводка использования недоступна";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar не удалось подготовить сводку использования для отправки. Обновите раздел «Использование и расходы» и повторите попытку.";
+"Incomplete" = "Неполные данные";
+"Est. subtotal (%@): %@" = "Оценка подытога (%@): %@";
+"Excluded requests with missing final usage: %d" = "Исключённые запросы без итоговых данных об использовании: %d";
+
+"overview_layout_title" = "Макет обзора";
+"overview_layout_subtitle" = "Выберите, сколько информации показывать в обзоре.";
+"overview_layout_detailed" = "Подробный";
+"overview_layout_compact" = "Компактный";
+
+"section_widgets" = "Виджеты";
+"account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
+"account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";

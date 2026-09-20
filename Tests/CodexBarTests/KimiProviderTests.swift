@@ -343,7 +343,16 @@ struct KimiAPIFetchStrategyTests {
                     Data(#"{"usage":{"limit":"100","used":"25","remaining":"75"},"limits":[]}"#.utf8),
                     response)
             }
-            #expect(url.path.hasSuffix("/GetSubscriptionStats"))
+            if url.path.hasSuffix("/GetSubscription") {
+                return (
+                    Data(
+                        """
+                        {"subscription":{"active":true,"status":"SUBSCRIPTION_STATUS_ACTIVE",
+                        "goods":{"title":"Allegro"}}}
+                        """.utf8),
+                    response)
+            }
+            #expect(url.path.hasSuffix("/GetSubscriptionStats") || url.path.hasSuffix("/GetSubscription"))
             #expect(request.value(forHTTPHeaderField: "Cookie") == "kimi-auth=desktop-token")
             return (
                 Data(#"{"subscriptionBalance":{"feature":"FEATURE_OMNI","type":"SUBSCRIPTION","amountUsedRatio":0.42}}"#
@@ -361,8 +370,9 @@ struct KimiAPIFetchStrategyTests {
         let result = try await strategy.fetch(context)
         let monthly = result.usage.extraRateWindows?.first { $0.id == "kimi-monthly" }
 
+        #expect(result.usage.loginMethod(for: .kimi) == "Allegro")
         #expect(monthly?.window.usedPercent == 42)
-        #expect(await transport.requests().count == 2)
+        #expect(await transport.requests().count == 3)
     }
 
     @Test
@@ -472,23 +482,25 @@ struct KimiAPIFetchStrategyTests {
     }
 
     @Test
-    func `auto mode falls back from API response decoding failure`() {
+    func `auto mode falls back from API response decoding failure`() throws {
         let strategy = KimiAPIFetchStrategy()
         let context = makeKimiFetchContext(sourceMode: .auto)
-        let error = DecodingError.dataCorrupted(
-            DecodingError.Context(codingPath: [], debugDescription: "Unexpected Kimi payload"))
+        let error = #expect(throws: DecodingError.self) {
+            try KimiUsageFetcher._parseCodeAPIUsageForTesting(Data("{}".utf8))
+        }
 
-        #expect(strategy.shouldFallback(on: error, context: context))
+        #expect(try strategy.shouldFallback(on: #require(error), context: context))
     }
 
     @Test
-    func `explicit API mode surfaces response decoding failure`() {
+    func `explicit API mode surfaces response decoding failure`() throws {
         let strategy = KimiAPIFetchStrategy()
         let context = makeKimiFetchContext(sourceMode: .api)
-        let error = DecodingError.dataCorrupted(
-            DecodingError.Context(codingPath: [], debugDescription: "Unexpected Kimi payload"))
+        let error = #expect(throws: DecodingError.self) {
+            try KimiUsageFetcher._parseCodeAPIUsageForTesting(Data("{}".utf8))
+        }
 
-        #expect(strategy.shouldFallback(on: error, context: context) == false)
+        #expect(try strategy.shouldFallback(on: #require(error), context: context) == false)
     }
 
     @Test
@@ -625,8 +637,8 @@ struct KimiUsageResponseParsingTests {
         """
 
         let snapshot = try KimiUsageFetcher._parseCodeAPIUsageForTesting(Data(json.utf8))
-        #expect(snapshot.weekly.limit == "2048")
-        #expect(snapshot.weekly.used == "375")
+        #expect(snapshot.weekly?.limit == "2048")
+        #expect(snapshot.weekly?.used == "375")
         #expect(snapshot.rateLimit?.limit == "200")
         #expect(snapshot.rateLimit?.used == "19")
 
@@ -721,10 +733,10 @@ struct KimiUsageResponseParsingTests {
 
         let snapshot = try KimiUsageFetcher._parseCodeAPIUsageForTesting(Data(json.utf8))
 
-        #expect(snapshot.weekly.limit == "1000")
-        #expect(snapshot.weekly.used == "40")
-        #expect(snapshot.weekly.remaining == "960")
-        #expect(snapshot.weekly.resetTime == "2026-01-09T15:23:13Z")
+        #expect(snapshot.weekly?.limit == "1000")
+        #expect(snapshot.weekly?.used == "40")
+        #expect(snapshot.weekly?.remaining == "960")
+        #expect(snapshot.weekly?.resetTime == "2026-01-09T15:23:13Z")
         #expect(snapshot.rateLimit?.limit == "100")
         #expect(snapshot.rateLimit?.used == nil)
         #expect(snapshot.rateLimit?.remaining == "99")
@@ -934,7 +946,7 @@ struct KimiUsageResponseParsingTests {
             if url.path.hasSuffix("/GetUsages") {
                 return (Data(usageJSON.utf8), response)
             }
-            #expect(url.path.hasSuffix("/GetSubscriptionStats"))
+            #expect(url.path.hasSuffix("/GetSubscriptionStats") || url.path.hasSuffix("/GetSubscription"))
             return (Data(subscriptionJSON.utf8), response)
         }
 
@@ -1113,6 +1125,18 @@ struct KimiUsageSnapshotConversionTests {
         #expect(monthly.window.usedPercent == 100)
         #expect(monthly.window.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes)
         #expect(monthly.window.resetsAt == Self.date("2026-07-23T00:00:00Z"))
+
+        let resolution = KimiProviderDescriptor.descriptor.presentation.menuBarWindow(context: .init(
+            metric: .automatic,
+            snapshot: usageSnapshot,
+            supportsAverage: false,
+            prioritizesExhaustedQuotas: false,
+            now: now))
+        guard case let .resolved(window) = resolution else {
+            Issue.record("Kimi automatic usage should resolve the exhausted membership pool")
+            return
+        }
+        #expect(window == monthly.window)
     }
 
     @Test

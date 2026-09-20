@@ -340,7 +340,8 @@ final class CLIEntryTests: XCTestCase {
         try FileManager.default.createDirectory(at: workingDirectoryURL, withIntermediateDirectories: true)
 
         let executableURL = installURL.appendingPathComponent("CodexBarCLI")
-        try FileManager.default.copyItem(at: Self.cliExecutableURL, to: executableURL)
+        try FileManager.default.copyItem(
+            at: TestBuildProducts.executableURL(named: "CodexBarCLI"), to: executableURL)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executableURL.path)
         try "8.7.6\n".write(
             to: installURL.appendingPathComponent("VERSION"),
@@ -446,14 +447,6 @@ final class CLIEntryTests: XCTestCase {
             ])
         }
         return text
-    }
-
-    private static var cliExecutableURL: URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent(".build/debug/CodexBarCLI")
     }
 
     func test_renderOpenAIWebDashboardTextIncludesSummary() {
@@ -658,6 +651,9 @@ final class CLIEntryTests: XCTestCase {
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .grok))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .grok))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .venice))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .venice))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .venice))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .amp))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
@@ -866,13 +862,51 @@ final class CLIEntryTests: XCTestCase {
             environment: [:]))
     }
 
+    func test_antigravityDiagnoseSerializesTerminalFailureAndLogsSafeCategory() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-antigravity-diagnostics-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let configURL = root.appendingPathComponent("config.json")
+        try CodexBarConfigStore(fileURL: configURL).save(CodexBarConfig(providers: [
+            ProviderConfig(id: .antigravity, enabled: true, source: .oauth),
+        ]))
+        // A present, empty synthetic credential envelope fails before any file credential lookup or HTTP request.
+        let environment = [
+            "HOME": root.path,
+            "GEMINI_CLI_HOME": root.appendingPathComponent(".gemini", isDirectory: true).path,
+            CodexBarConfigStore.pathEnvironmentKey: configURL.path,
+            AntigravityOAuthCredentialsStore.environmentCredentialsKey: "{}",
+        ]
+        let result = try Self.runCLI(
+            arguments: ["diagnose", "--provider", "antigravity", "--format", "json", "--pretty"],
+            environment: environment)
+        XCTAssertEqual(result.status, 0)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let diagnostic = try decoder.decode(ProviderDiagnosticExport.self, from: result.stdout)
+        XCTAssertEqual(diagnostic.sourceMode, "oauth")
+        XCTAssertEqual(diagnostic.fetchAttempts.count, 1)
+        XCTAssertEqual(diagnostic.fetchAttempts.first?.strategyID, "antigravity.oauth")
+        XCTAssertEqual(diagnostic.fetchAttempts.first?.outcome, "failed")
+        XCTAssertEqual(diagnostic.fetchAttempts.first?.errorCategory, "auth")
+        let usage = try Self.runCLI(
+            arguments: ["usage", "--provider", "antigravity", "--verbose"],
+            environment: environment)
+        XCTAssertNotEqual(usage.status, 0)
+        let stderr = try XCTUnwrap(String(data: usage.stderr, encoding: .utf8))
+        XCTAssertEqual(stderr.components(separatedBy: "Provider fetch failed").count - 1, 1)
+        XCTAssertTrue(stderr.contains("antigravity.oauth (oauth): failed: auth"))
+        let failureLog = stderr.split(separator: "\n").filter { $0.contains("Provider fetch failed") }.joined()
+        XCTAssertFalse(failureLog.contains("Google auth not found"))
+    }
+
     private static func runCLI(
         arguments: [String],
         environment: [String: String] = [:]) throws -> (status: Int32, stdout: Data, stderr: Data)
 
     {
         let process = Process()
-        process.executableURL = Self.cliExecutableURL
+        process.executableURL = TestBuildProducts.executableURL(named: "CodexBarCLI")
         process.arguments = arguments
         process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, override in override }
 

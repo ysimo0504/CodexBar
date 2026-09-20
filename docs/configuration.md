@@ -9,6 +9,7 @@ read_when:
 # Configuration
 
 CodexBar reads a single JSON config file for CLI and app provider settings.
+The running app observes external in-place edits and atomic replacements, including rapid replacements and restoring older contents. Successful app writes update the observed baseline without being reported as external edits.
 API keys, manual cookie headers, source selection, ordering, and token accounts live here. Keychain is still used for runtime cookie caches, browser Safe Storage access, and provider OAuth/device-flow credentials where those flows require it.
 
 ## Location
@@ -46,7 +47,8 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 
 Hooks are local, explicit opt-in automation. Configure them in Settings > Hooks or in this local config file; no
 HTTP or remote-config endpoint can create or enable hook rules. The top-level `hooks.enabled` switch defaults to
-`false`, and each rule also has its own `enabled` switch.
+`false`, and each rule also has its own `enabled` switch. The editor shows thresholds as percentages; example
+values and command paths appear only as prompts in empty fields.
 
 ```json
 {
@@ -81,19 +83,27 @@ Events:
   rules without a threshold use the provider's configured warning thresholds.
 - `quota_reached`: the primary session quota crosses into depletion.
 - `quota_reset`: a confirmed session or weekly reset occurs.
+- `usage_updated`: the macOS app published a successful, current provider refresh, or `hooks watch` completed a
+  successful poll. It can fire when values are unchanged. `usagePercent`, `windowMinutes`, and `resetAt`
+  describe the positional primary window; `secondaryUsagePercent`, `secondaryWindowMinutes`, and
+  `secondaryResetAt` describe the positional secondary window. Synthetic placeholder windows are omitted.
 - `provider_unavailable`: a provider status changes to a minor, major, or critical outage.
 - `provider_recovered`: that tracked outage returns to normal.
 - `refresh_failed`: a provider refresh fails; `CODEXBAR_STATUS` is a coarse category such as `timeout`, `offline`,
   `network_error`, `auth_required`, `cancelled`, or `error`.
 
-`provider_unavailable` and `refresh_failed` are coalesced per provider/account/window for ten minutes so background
-refresh failures cannot create command storms. Quota and recovery events use their transition detectors instead. Hook
-failures are contained and never block provider refresh.
+`usage_updated`, `provider_unavailable`, and `refresh_failed` allow the first matching attempt immediately,
+then drop further attempts for the same provider/account/window for 600 seconds. Failed command attempts consume
+that interval; unmatched rules do not. There is no queued latest value or trailing delivery. Restarting resets
+the in-memory limiter. Quota and recovery events use their transition detectors instead. Hook failures are
+contained and never block app provider refresh. `hooks watch` reports only events whose command execution was
+attempted, including failed commands, rather than suppressed candidates.
 
 Payload environment variables are `CODEXBAR_EVENT`, `CODEXBAR_PROVIDER`, `CODEXBAR_TIMESTAMP`, and, when available,
 `CODEXBAR_ACCOUNT`, `CODEXBAR_WINDOW`, `CODEXBAR_USAGE_PERCENT`, `CODEXBAR_USED`, `CODEXBAR_LIMIT`,
-`CODEXBAR_RESET_AT`, and `CODEXBAR_STATUS`. Enabling Hide personal info omits `CODEXBAR_ACCOUNT` and the matching JSON
-field.
+`CODEXBAR_WINDOW_MINUTES`, `CODEXBAR_RESET_AT`, `CODEXBAR_SECONDARY_USAGE_PERCENT`,
+`CODEXBAR_SECONDARY_WINDOW_MINUTES`, `CODEXBAR_SECONDARY_RESET_AT`, and `CODEXBAR_STATUS`. Enabling Hide personal info
+omits `CODEXBAR_ACCOUNT` and the matching JSON field.
 
 The stdin JSON uses the same camel-case field names without the `CODEXBAR_` prefix. Dates are UTC ISO 8601 strings,
 usage percentages are `0...1` fractions, unavailable optional fields are omitted rather than encoded as `null`, and
@@ -276,6 +286,8 @@ See the [generated provider ID list](provider-ids.md), sourced from `UsageProvid
 The order of `providers` controls display/order in the app and CLI. Reorder the array to change ordering.
 
 ## iCloud sync
+The three sync sub-options are disabled while the main sync switch is off, iCloud is unavailable, or a newer app version is required. Their saved choices are retained when sync is turned off and restored when it is enabled again.
+
 Opt-in (Settings → iCloud Sync, off by default; requires a signed release build and an iCloud account). When enabled, CodexBar syncs across the user's Macs via CloudKit (private database, container `iCloud.com.steipete.codexbar`):
 
 - **Provider configuration** — portable fields of each provider entry (enabled intent, extras, region, workspace, quota-warning overrides, ordering-relevant metadata). Secrets (`apiKey`, `secretKey`, `cookieHeader`, `tokenAccounts`) sync only when "Include API keys, cookies, and tokens" is on, and travel exclusively in CloudKit `encryptedValues` (end-to-end encrypted; readable only on the user's devices).

@@ -79,7 +79,6 @@ enum PiSessionCostScanner {
     /// Bump for Pi-only cost formula changes not represented by the parser or pricing fingerprints.
     private static let costFormulaVersion = 2
     private static let maxLineBytes = 16 * 1024 * 1024
-    private static let maxSafeRoundedInt = Double(Int.max) - 1
     private static let sessionStartFilenameRegex = try? NSRegularExpression(
         pattern: "^(\\d{4}-\\d{2}-\\d{2})T(\\d{2})-(\\d{2})-(\\d{2})-(\\d{3})Z_")
     private static let isoFormatterBox = PiSessionISO8601FormatterBox()
@@ -225,14 +224,16 @@ enum PiSessionCostScanner {
         until: Date,
         now: Date = Date(),
         cacheRoot: URL? = nil,
-        calendar: Calendar = .current) -> CachedDailyReportResult?
+        calendar: Calendar = .current,
+        allowEstablishedEmpty: Bool = false) -> CachedDailyReportResult?
     {
         guard provider == .codex || provider == .claude else { return nil }
 
         let range = CostUsageScanner.CostUsageDayRange(since: since, until: until, calendar: calendar)
         let cache = PiSessionCostCacheIO.load(cacheRoot: cacheRoot)
         guard cache.timeZoneIdentifier == range.calendar.timeZone.identifier else { return nil }
-        guard !cache.daysByProvider.isEmpty else { return nil }
+        guard !allowEstablishedEmpty || cache.lastScanUnixMs > 0 else { return nil }
+        guard allowEstablishedEmpty || !cache.daysByProvider.isEmpty else { return nil }
         guard !self.requestedWindowExpandsCache(range: range, cache: cache) else { return nil }
 
         let pricingContext = self.pricingContext(now: now, cacheRoot: cacheRoot)
@@ -242,7 +243,7 @@ enum PiSessionCostScanner {
             cache: cache,
             range: range,
             pricingContext: pricingContext)
-        guard !report.data.isEmpty else { return nil }
+        guard allowEstablishedEmpty || !report.data.isEmpty else { return nil }
         let lastScanAt = cache.lastScanUnixMs > 0
             ? Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
             : nil
@@ -866,20 +867,9 @@ enum PiSessionCostScanner {
     }
 
     private static func readNonNegativeInt(_ value: Any?) -> Int {
-        if let number = value as? NSNumber {
-            let numeric = number.doubleValue
-            guard numeric.isFinite, numeric >= 0, numeric <= self.maxSafeRoundedInt else { return 0 }
-            return Int(numeric.rounded())
-        }
-        if let string = value as? String,
-           let numeric = Double(string),
-           numeric.isFinite,
-           numeric >= 0,
-           numeric <= self.maxSafeRoundedInt
-        {
-            return Int(numeric.rounded())
-        }
-        return 0
+        let numeric = (value as? NSNumber)?.doubleValue ?? (value as? String).flatMap { Double($0) }
+        guard let numeric, numeric >= 0 else { return 0 }
+        return Int(exactly: numeric.rounded()) ?? 0
     }
 }
 

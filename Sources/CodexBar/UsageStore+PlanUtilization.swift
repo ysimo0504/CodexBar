@@ -49,7 +49,8 @@ extension UsageStore {
         self.planUtilizationHistorySelection(for: provider).histories
     }
 
-    func planUtilizationHistorySelection(for provider: UsageProvider)
+    /// Read-only selection shares live account ownership rules without migrating or persisting history.
+    func planUtilizationHistorySelection(for provider: UsageProvider, readOnly: Bool = false)
         -> PlanUtilizationHistorySelection
     {
         // The persisted history has not been read yet. Return the in-memory
@@ -79,9 +80,10 @@ extension UsageStore {
             provider: provider,
             snapshot: self.snapshots[provider.instanceID],
             preferredAccount: nil,
+            readOnly: readOnly,
             providerBuckets: &providerBuckets)
-        self.planUtilizationHistory[provider.instanceID] = providerBuckets
-        if providerBuckets != originalProviderBuckets {
+        if !readOnly { self.planUtilizationHistory[provider.instanceID] = providerBuckets }
+        if !readOnly, providerBuckets != originalProviderBuckets {
             self.planUtilizationHistoryRevision &+= 1
             self.sessionEquivalentBurnCache.removeValue(forKey: provider.instanceID)
             let snapshotToPersist = self.planUtilizationHistory
@@ -646,9 +648,12 @@ extension UsageStore {
             appendWindow(snapshot.primary, name: .session)
             appendWindow(snapshot.secondary, name: .weekly)
             appendWindow(snapshot.tertiary, name: .monthly)
-        case .mimo, .stepfun:
+        case .mimo, .stepfun, .ollama:
             if snapshot.primary?.windowMinutes == ProviderPaceCapability.monthlyWindowSentinelMinutes {
                 appendWindow(snapshot.primary, name: .monthly)
+                if provider == .ollama {
+                    appendWindow(snapshot.secondary, name: .weekly)
+                }
             } else {
                 appendGenericSessionEquivalentWindows()
             }
@@ -856,7 +861,7 @@ extension UsageStore {
         accountKey?.hasPrefix(self.claudeOAuthPlanUtilizationAccountKeyPrefix) == true
     }
 
-    private nonisolated static func planUtilizationIdentityAccountKey(
+    nonisolated static func planUtilizationIdentityAccountKey(
         provider: UsageProvider,
         snapshot: UsageSnapshot) -> String?
     {
@@ -1154,6 +1159,7 @@ extension UsageStore {
         isClaudeOAuthSample: Bool = false,
         shouldUpdatePreferredAccountKey: Bool = true,
         shouldAdoptUnscopedHistory: Bool = true,
+        readOnly: Bool = false,
         providerBuckets: inout PlanUtilizationHistoryBuckets) -> String?
     {
         // Provider-specific by design: Codex reconciliation and Claude OAuth use distinct persisted owner migrations.
@@ -1162,12 +1168,13 @@ extension UsageStore {
                 snapshot: snapshot,
                 shouldUpdatePreferredAccountKey: shouldUpdatePreferredAccountKey,
                 shouldAdoptUnscopedHistory: shouldAdoptUnscopedHistory,
+                readOnly: readOnly,
                 providerBuckets: &providerBuckets)
         }
 
         // Claude's unscoped history is only safe to adopt during the first unambiguous migration.
         // The sentinel marks identityless OAuth, while any scoped bucket proves multiple owners may exist.
-        let canAdoptUnscopedHistory = shouldAdoptUnscopedHistory
+        let canAdoptUnscopedHistory = !readOnly && shouldAdoptUnscopedHistory
             && !(provider == .claude
                 && (providerBuckets.preferredAccountKey == Self.planUtilizationUnscopedPreferredKey
                     || !providerBuckets.accounts.isEmpty))
@@ -1177,9 +1184,7 @@ extension UsageStore {
                 historyOwnerIdentifier: claudeOAuthHistoryOwnerIdentifier,
                 corroboratingPersistentRefHash: claudeOAuthPersistentRefHash)
             {
-                if shouldUpdatePreferredAccountKey {
-                    providerBuckets.preferredAccountKey = oauthAccountKey
-                }
+                if shouldUpdatePreferredAccountKey, !readOnly { providerBuckets.preferredAccountKey = oauthAccountKey }
                 // Existing unscoped or identity-keyed history can belong to another OAuth account.
                 // Preserve it in place rather than silently adopting it into this opaque account.
                 return oauthAccountKey
@@ -1191,9 +1196,7 @@ extension UsageStore {
 
         let resolvedAccount = preferredAccount ?? self.settings.effectiveSelectedTokenAccount(for: provider)
         if let tokenAccountKey = Self.planUtilizationAccountKey(provider: provider, account: resolvedAccount) {
-            if shouldUpdatePreferredAccountKey {
-                providerBuckets.preferredAccountKey = tokenAccountKey
-            }
+            if shouldUpdatePreferredAccountKey, !readOnly { providerBuckets.preferredAccountKey = tokenAccountKey }
             if canAdoptUnscopedHistory {
                 self.adoptPlanUtilizationUnscopedHistoryIfNeeded(
                     into: tokenAccountKey,
@@ -1206,6 +1209,7 @@ extension UsageStore {
         if let snapshot,
            let identityAccountKey = Self.planUtilizationIdentityAccountKey(provider: provider, snapshot: snapshot)
         {
+            if readOnly { return identityAccountKey }
             let resolvedIdentityAccountKey = self.materializeLegacyClaudePlanUtilizationHistoryIfNeeded(
                 into: identityAccountKey,
                 provider: provider,
@@ -1234,10 +1238,12 @@ extension UsageStore {
         snapshot: UsageSnapshot?,
         shouldUpdatePreferredAccountKey: Bool,
         shouldAdoptUnscopedHistory: Bool,
+        readOnly: Bool,
         providerBuckets: inout PlanUtilizationHistoryBuckets) -> String?
     {
         let ownership = self.codexOwnershipContext(snapshot: snapshot, includeDashboardFallback: true)
         if let canonicalKey = ownership.canonicalKey {
+            if readOnly { return canonicalKey }
             let resolvedAccountKey = self.materializeCodexPlanUtilizationHistoryIfNeeded(
                 into: canonicalKey,
                 ownership: ownership,

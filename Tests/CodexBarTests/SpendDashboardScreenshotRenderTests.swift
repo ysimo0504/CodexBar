@@ -10,6 +10,62 @@ import XCTest
 ///   CODEXBAR_SPEND_PROOF_DIR=.github/pr-proof swift test --filter SpendDashboardScreenshotRenderTests
 @MainActor
 final class SpendDashboardScreenshotRenderTests: XCTestCase {
+    func test_renderCostHistoryPrivacyScreenshots() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_COST_PRIVACY_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_COST_PRIVACY_PROOF_DIR to render synthetic cost-history privacy proof.")
+        }
+        let directory = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let now = try XCTUnwrap(Self.gmtCalendar.date(from: DateComponents(year: 2026, month: 8, day: 29)))
+        let daily = [Self.entry(day: "2026-08-29", cost: 12.5, tokens: 42000, model: "gpt-5.4")]
+        let project = CostUsageProjectBreakdown(
+            name: "Example Client",
+            path: "/Users/example/Projects/example-client",
+            totalTokens: 42000,
+            totalCostUSD: 12.5,
+            daily: daily,
+            modelBreakdowns: nil,
+            sources: [CostUsageProjectSourceBreakdown(
+                name: "Example Worktree",
+                path: "/Users/example/Worktrees/example-branch",
+                totalTokens: 42000,
+                totalCostUSD: 12.5,
+                daily: daily,
+                modelBreakdowns: nil)])
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: 42000,
+            sessionCostUSD: 12.5,
+            last30DaysTokens: 42000,
+            last30DaysCostUSD: 12.5,
+            daily: daily,
+            projects: [project],
+            updatedAt: now)
+        let model = SpendDashboardModel.build(
+            inputs: [.init(provider: .codex, displayName: "Codex", snapshot: snapshot)],
+            requestedDays: 30,
+            now: now,
+            calendar: Self.gmtCalendar)
+        let group = try XCTUnwrap(model.groups.first)
+        let menu = CostHistoryChartMenuView(
+            provider: .codex,
+            daily: daily,
+            totalCostUSD: 12.5,
+            projects: [project],
+            hidePersonalInfo: true,
+            width: 400)
+        let dashboard = SpendDashboardCurrencySection(group: group, requestedDays: 30, hidePersonalInfo: true)
+        for (name, view) in [
+            ("menu", AnyView(menu.frame(width: 400))),
+            ("dashboard", AnyView(dashboard.padding(24).frame(width: 760))),
+        ] {
+            let image = try XCTUnwrap(Self.pngData(for: AnyView(view
+                    .environment(\.locale, Locale(identifier: "en_US_POSIX"))
+                    .environment(\.timeZone, Self.gmtCalendar.timeZone)
+                    .background(Color(nsColor: .windowBackgroundColor)))))
+            try image.write(to: directory.appendingPathComponent("\(name).png"))
+        }
+    }
+
     func test_renderUsageSpendRangeScreenshots() throws {
         guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_SPEND_PROOF_DIR"] else {
             throw XCTSkip("Set CODEXBAR_SPEND_PROOF_DIR to render Usage & Spend proof screenshots.")
@@ -149,6 +205,96 @@ final class SpendDashboardScreenshotRenderTests: XCTestCase {
             try shareData.write(
                 to: directory.appendingPathComponent("share-stats-all-partial.png"),
                 options: .atomic)
+        }
+    }
+
+    func test_renderHeatmapMidnightDST() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_HEATMAP_DST_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_HEATMAP_DST_PROOF_DIR to render synthetic heatmap DST proof.")
+        }
+        let directory = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var calendar = Self.gmtCalendar
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 11, hour: 12)))
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        let entries = try (0..<365).map { offset in
+            let date = try XCTUnwrap(calendar.date(byAdding: .day, value: -offset, to: now))
+            return CostUsageDailyReport.Entry(
+                date: formatter.string(from: date),
+                inputTokens: (offset % 7 + 1) * 1000,
+                outputTokens: 0,
+                totalTokens: (offset % 7 + 1) * 1000,
+                costUSD: 0,
+                modelsUsed: nil,
+                modelBreakdowns: nil)
+        }
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: entries.compactMap(\.totalTokens).reduce(0, +),
+            last30DaysCostUSD: 0,
+            historyDays: 365,
+            daily: entries,
+            updatedAt: now)
+        let model = SpendDashboardModel.build(
+            inputs: [.init(provider: .codex, displayName: "Synthetic Codex", snapshot: snapshot)],
+            requestedDays: 365,
+            now: now,
+            calendar: calendar)
+        let points = model.tokenActivity
+        let series = SpendActivitySeries.make(from: points, now: now, calendar: calendar)
+        try JSONEncoder().encode([
+            "visibleDays": series.visibleDayCount,
+            "coveredDays": series.coveredDayCount,
+            "tokens": series.daily.reduce(0, +),
+            "expectedTokens": entries.compactMap(\.totalTokens).reduce(0, +),
+        ]).write(to: directory.appendingPathComponent("heatmap-dst.json"))
+        let view = AnyView(SpendActivityHeatmapView(points: points, now: now, calendar: calendar)
+            .padding(24)
+            .frame(width: 900)
+            .environment(\.locale, Locale(identifier: "en_US_POSIX"))
+            .background(Color(nsColor: .windowBackgroundColor)))
+        let data = try XCTUnwrap(Self.pngData(for: view))
+        try data.write(to: directory.appendingPathComponent("heatmap-dst.png"))
+    }
+
+    func test_renderMidnightCoverage() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CODEXBAR_DAY_BOUNDARY_PROOF_DIR"] else {
+            throw XCTSkip("Set CODEXBAR_DAY_BOUNDARY_PROOF_DIR for synthetic day-boundary proof.")
+        }
+        let directory = URL(fileURLWithPath: dir, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var calendar = Self.gmtCalendar
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
+        let now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 7, hour: 12)))
+        let snapshot = Self.snapshot(
+            entries: [
+                Self.entry(day: "2026-09-06", cost: 1, tokens: 1000, model: "fixture-model"),
+                Self.entry(day: "2026-09-07", cost: 1, tokens: 1000, model: "fixture-model"),
+            ],
+            historyDays: 2,
+            now: now)
+        let previous = try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: now))
+        for (name, selectedDay) in [("coverage", Date?.none), ("selected-day", Optional(previous))] {
+            let model = SpendDashboardModel.build(
+                inputs: [.init(provider: .codex, displayName: "Synthetic Codex", snapshot: snapshot)],
+                requestedDays: 7,
+                now: now,
+                calendar: calendar,
+                selectedDay: selectedDay)
+            let group = try XCTUnwrap(model.groups.first)
+            let view = AnyView(SpendDashboardCurrencySection(group: group, requestedDays: 7, hidePersonalInfo: true)
+                .padding(24).frame(width: 900)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .preferredColorScheme(.light)
+                .environment(\.locale, Locale(identifier: "en_US_POSIX")))
+            try XCTUnwrap(Self.pngData(for: view)).write(to: directory.appendingPathComponent(name + ".png"))
+            try JSONEncoder().encode(["coveredDays": group.coveredDayCount])
+                .write(to: directory.appendingPathComponent(name + ".json"))
         }
     }
 

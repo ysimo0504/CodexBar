@@ -31,6 +31,24 @@ struct LocalizationLanguageCatalogTests {
     ]
 
     @Test
+    func `every catalog localizes the complete model weekly phrase with one argument`() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let catalogs = try FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+        #expect(catalogs.count == AppLanguage.allCases.count - 1)
+        for url in catalogs {
+            let catalog = try #require(NSDictionary(contentsOf: url.appendingPathComponent("Localizable.strings"))
+                as? [String: String])
+            let phrase = try #require(catalog["%@ weekly"], "Missing phrase in \(url.lastPathComponent)")
+            #expect(phrase.components(separatedBy: "%@").count == 2)
+            #expect(phrase.count(where: { $0 == "%" }) == 1)
+            #expect(phrase != "%@")
+        }
+    }
+
+    @Test
     func `catalan plugin sidebar uses the same terminology as its pane`() {
         CodexBarLocalizationOverride.$appLanguage.withValue("ca") {
             #expect(SettingsPane.plugins.title == "Connectors")
@@ -114,6 +132,21 @@ struct LocalizationLanguageCatalogTests {
             for key in keys {
                 #expect(catalog[key]?.isEmpty == false, "\(language.rawValue).\(key)")
             }
+        }
+    }
+
+    @Test
+    func `Workspaces is localized in every app language`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+
+        for language in AppLanguage.allCases where language != .system {
+            let url = resourcesURL.appendingPathComponent("\(language.rawValue).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: url) as? [String: String])
+            #expect(catalog["Workspaces"]?.isEmpty == false)
         }
     }
 

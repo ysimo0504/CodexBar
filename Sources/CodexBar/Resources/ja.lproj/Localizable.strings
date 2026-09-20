@@ -45,6 +45,7 @@
 "hooks_any_provider" = "すべてのプロバイダー";
 "hooks_threshold" = "使用率 ≥ で実行";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "実行ファイル";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "引数";
 "hooks_argument_placeholder" = "引数";
@@ -149,6 +150,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "コスト";
+"Token history" = "トークン履歴";
+"Local token history · dollar costs unavailable" = "ローカルトークン履歴 · ドル建てコストは不明";
+"Partial local history · recorded token subtotal" = "一部のローカル履歴 · 記録されたトークンの小計";
+"Local token history is unavailable or incomplete." = "ローカルトークン履歴を取得できないか、履歴が不完全です。";
 "Could not add Codex account" = "Codex アカウントを追加できませんでした";
 "Could not open Terminal for Gemini" = "Gemini 用のターミナルを開けませんでした";
 "Could not start claude /login" = "claude /login を開始できませんでした";
@@ -239,6 +244,7 @@
 "No cost history data." = "コスト履歴データがありません。";
 "No data available" = "データがありません";
 "No data yet" = "まだデータがありません";
+"Workspaces" = "ワークスペース";
 "No enabled providers available for Overview." = "概要に表示できる有効なプロバイダがありません。";
 "No providers selected" = "プロバイダが選択されていません";
 "No token accounts yet." = "トークンアカウントはまだありません。";
@@ -511,7 +517,6 @@
 "provider_accent_color_reset" = "デフォルトを使用";
 "quota_warnings_title" = "クォータ警告";
 "quota_warning_session" = "セッション";
-"quota_warning_session_capitalized" = "セッション";
 "quota_warning_weekly" = "週間";
 "quota_warning_weekly_capitalized" = "週間";
 "quota_warning_notification_title" = "%1$@ の%2$@クォータが残りわずか";
@@ -664,6 +669,9 @@
 "surprise_me_subtitle" = "エージェントたちがメニューバーで少し遊ぶのが好きか試してみてください。";
 "hide_personal_info_title" = "個人情報を隠す";
 "hide_personal_info_subtitle" = "メニューバーとメニュー UI のメールアドレスを伏せ字にします。";
+"hide_cost_history_identity_subtitle" = "保存データを変更せずに、コスト履歴のプロジェクト名・ソース名とパスも非表示にします。";
+"Project %d" = "プロジェクト %d";
+"Source %d" = "ソース %d";
 "show_provider_storage_usage_title" = "プロバイダのストレージ使用量を表示";
 "show_provider_storage_usage_subtitle" = "ローカルディスクの使用量をメニューに表示します。既知のプロバイダ所有パスをバックグラウンドでスキャンします。";
 "section_keychain_access" = "キーチェーンアクセス";
@@ -875,6 +883,12 @@
 "usage_percent_suffix_used" = "使用済み";
 "Store multiple DeepSeek API keys." = "複数の DeepSeek API キーを保存します。";
 "This week" = "今週";
+"Current window" = "現在のウィンドウ";
+"Last week" = "先週";
+"%d weeks ago" = "%d週間前";
+"Previous window" = "前のウィンドウ";
+"%d windows ago" = "%dウィンドウ前";
+"Recent windows" = "最近のウィンドウ";
 "Week" = "週";
 "Month" = "月";
 "Models" = "モデル";
@@ -934,6 +948,8 @@
 "Overage" = "超過分";
 "Activity" = "アクティビティ";
 "Copied" = "コピーしました";
+"Managed by Homebrew" = "Homebrew で管理されています";
+"Copy update command" = "更新コマンドをコピー";
 "Copy error" = "エラーをコピー";
 "Copy path" = "パスをコピー";
 "Extra usage spent" = "追加使用分の支出";
@@ -1426,6 +1442,33 @@
 "Cost today unavailable" = "今日のコスト: 利用不可";
 "30-day cost unavailable" = "30日間のコスト: 利用不可";
 "Resets" = "リセット";
+"codex_workspaces_cost_unavailable" = "コストを利用できません";
+"codex_workspaces_elevated_usage" = "使用量がやや多い";
+"codex_workspaces_estimated_cost_short" = "推定コスト";
+"codex_workspaces_estimated_cost_value" = "推定 %@";
+"codex_workspaces_estimated_local_logs" = "ローカルの Codex ログから推定";
+"codex_workspaces_failed_read_logs" = "Codex ログを読み込めませんでした";
+"codex_workspaces_high_usage" = "使用量が多い";
+"codex_workspaces_indexing_local_logs" = "ローカル Codex ログをインデックス作成中…";
+"codex_workspaces_indexing_projects" = "プロジェクトをインデックス作成中…";
+"codex_workspaces_local_codex_chat" = "ローカル Codex チャット";
+"codex_workspaces_model" = "モデル";
+"codex_workspaces_no_local_usage" = "ローカルの Codex 使用状況はまだありません";
+"codex_workspaces_no_sessions" = "このワークスペースにはセッションがありません";
+"codex_workspaces_normal_usage" = "通常の使用量";
+"codex_workspaces_partial_data" = "一部のデータ";
+"codex_workspaces_refresh_usage_data" = "使用状況データを更新";
+"codex_workspaces_retry" = "再試行";
+"codex_workspaces_saving_project_index" = "プロジェクトインデックスを保存中…";
+"codex_workspaces_scanning_logs" = "Codex ログをスキャン中…";
+"codex_workspaces_session" = "セッション";
+"codex_workspaces_session_count" = "セッション: %@";
+"codex_workspaces_sessions" = "セッション";
+"codex_workspaces_started" = "開始日時";
+"codex_workspaces_title" = "ワークスペース";
+"codex_workspaces_token_count_accessibility" = "%@ トークン";
+"codex_workspaces_tokens" = "トークン";
+"codex_workspaces_top_model" = "上位のモデル";
 "Finish now" = "今すぐ完了";
 "Continue in background" = "バックグラウンドで続行";
 
@@ -1482,6 +1525,7 @@
 "Total usage" = "合計使用量";
 "claude_oauth_keychain_access_revoked" = "Claude Code のトークン更新により、Claude キーチェーンへのアクセスが取り消されました。「更新」をクリックしてアクセスを再許可するか、Claude の使用量の取得元を CLI/Web に切り替えてください。";
 "claude_showing_last_known_usage" = "最後に取得した既知の使用量を表示しています（取得: %@）。";
+"claude_limited_usage_detail" = "使用量の詳細情報は限られています";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1536,4 +1580,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "セッションがほぼ上限";
 "menu_bar_layout_conditional_default_either_high" = "セッションまたは週間が高水準";
 "menu_bar_layout_conditional_default_scoped_weekly" = "モデル別週間の使用率 60% 超";
+"Visible usage items" = "表示する使用量項目";
+"Restore Defaults" = "デフォルトに戻す";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "このプロバイダーのメニュー、設定プレビュー、概要に表示する使用量の行を選択します。";
+"%@ (unavailable)" = "%@（利用不可）";
 "Spending cap, not balance" = "利用上限額（残高ではありません）";
+
+"Color Pace Indicator" = "使用ペースを色分け";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "想定より使用が遅い場合は緑（余裕あり）、速い場合は赤（上限に早く達するおそれ）で表示します。";
+"%@ weekly" = "%@（週間）";
+
+"agent_sessions_hide_unreachable_title" = "接続できないホストを非表示";
+"agent_sessions_hide_unreachable_subtitle" = "セッションの取得に失敗したホストを非表示にします。";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "使用状況の概要を共有…";
+"Usage snapshot unavailable" = "使用状況の概要を利用できません";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar で共有用の使用状況の概要を準備できませんでした。「使用状況と支出」を更新して、もう一度お試しください。";
+"Incomplete" = "不完全";
+"Est. subtotal (%@): %@" = "推定小計 (%@): %@";
+"Excluded requests with missing final usage: %d" = "最終的な使用量が未記録のため除外されたリクエスト: %d";
+
+"overview_layout_title" = "概要のレイアウト";
+"overview_layout_subtitle" = "概要に表示する情報量を選択します。";
+"overview_layout_detailed" = "詳細";
+"overview_layout_compact" = "コンパクト";
+
+"section_widgets" = "ウィジェット";
+"account_widgets_title" = "ウィジェット用にアカウントを更新する";
+"account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";

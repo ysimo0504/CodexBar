@@ -50,18 +50,36 @@ extension UsageStore {
                 return
             }
 
-            let widgetSnapshotURL = self.widgetSnapshotURL
-            await Task.detached(priority: .utility) {
-                if let widgetSnapshotURL {
-                    WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
-                } else {
-                    WidgetSnapshotStore.save(snapshot)
-                }
-            }.value
-            #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
-            #endif
+            await Self.saveWidgetSnapshot(
+                snapshot,
+                to: self.widgetSnapshotURL,
+                isRunningTests: SettingsStore.isRunningTests,
+                reloadTimelines: self.widgetTimelineReloader)
         }
+    }
+
+    static func saveWidgetSnapshot(
+        _ snapshot: WidgetSnapshot,
+        to url: URL?,
+        isRunningTests: Bool,
+        reloadTimelines: @MainActor () -> Void) async
+    {
+        await Task.detached(priority: .utility) {
+            if let url {
+                WidgetSnapshotStore.save(snapshot, to: url)
+            } else {
+                WidgetSnapshotStore.save(snapshot)
+            }
+        }.value
+        // Opting into file persistence in tests never opts into WidgetKit side effects.
+        guard !isRunningTests else { return }
+        reloadTimelines()
+    }
+
+    static func reloadWidgetTimelines() {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 
     /// Builds outbound snapshots only from this Mac's UsageStore; remote fleet snapshots live in CloudSyncState.
@@ -178,6 +196,7 @@ extension UsageStore {
         }
         return WidgetSnapshot(
             entries: entries,
+            accounts: self.makeWidgetAccountEntries(now: now),
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             generatedAt: now)
@@ -256,6 +275,13 @@ extension UsageStore {
         } else {
             nil
         }
+        // Provider-specific by design: DeepSeek and OpenRouter expose their widget value as balance text.
+        let balanceText: String? = switch provider {
+        case .deepseek, .openrouter:
+            StatusItemController.menuBarBalanceDisplayText(provider: provider, snapshot: snapshot)
+        default:
+            nil
+        }
 
         return WidgetSnapshot.ProviderEntry(
             provider: provider,
@@ -269,7 +295,8 @@ extension UsageStore {
             tokenUsage: tokenUsage,
             dailyUsage: dailyUsage,
             providerCost: providerCost,
-            quotaOwnerKey: quotaOwnerKey)
+            quotaOwnerKey: quotaOwnerKey,
+            balanceText: balanceText)
     }
 
     private struct PreservedClaudeWidgetUsage {
@@ -376,7 +403,49 @@ extension UsageStore {
             updatedAt: snapshot.updatedAt)
     }
 
-    private func widgetUsageRows(
+    private nonisolated static func widgetPrimaryTitle(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        metadata: ProviderMetadata?) -> String
+    {
+        // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
+        if provider == .cursor, snapshot.detailRow(label: "Request quota") != nil {
+            return "Requests"
+        }
+        if provider == .grok,
+           let dyn = GrokProviderDescriptor.displayLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        if provider == .doubao,
+           let dyn = DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        if provider == .amp,
+           let dyn = AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
+        {
+            return dyn
+        }
+        if provider == .crof {
+            return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
+        }
+        if provider == .alibabatokenplan,
+           let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        if provider == .ollama,
+           let dyn = OllamaProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        guard let metadata else { return "Session" }
+        return ProviderDescriptorRegistry.descriptor(for: provider).presentation
+            .rateWindowLabels(metadata: metadata, snapshot: snapshot).primary
+    }
+
+    func widgetUsageRows(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
         now: Date) -> [WidgetSnapshot.WidgetUsageRowSnapshot]
@@ -429,36 +498,7 @@ extension UsageStore {
             return rows
         }
 
-        let primaryTitle: String = {
-            // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
-            if provider == .cursor, snapshot.detailRow(label: "Request quota") != nil {
-                return "Requests"
-            }
-            if provider == .grok,
-               let dyn = GrokProviderDescriptor.displayLabel(window: snapshot.primary)
-            {
-                return dyn
-            }
-            if provider == .doubao,
-               let dyn = DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary)
-            {
-                return dyn
-            }
-            if provider == .amp,
-               let dyn = AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
-            {
-                return dyn
-            }
-            if provider == .crof {
-                return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
-            }
-            if provider == .alibabatokenplan,
-               let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
-            {
-                return dyn
-            }
-            return metadata?.sessionLabel ?? "Session"
-        }()
+        let primaryTitle = Self.widgetPrimaryTitle(provider: provider, snapshot: snapshot, metadata: metadata)
         let secondaryTitle = if provider == .amp {
             AmpProviderDescriptor.secondaryLabel(snapshot: snapshot) ?? metadata?.weeklyLabel ?? "Weekly"
         } else if provider == .alibabatokenplan {

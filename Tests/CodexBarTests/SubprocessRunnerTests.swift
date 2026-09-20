@@ -9,6 +9,17 @@ import Glibc
 #endif
 
 struct SubprocessRunnerTests {
+    @Test(arguments: [Double(Int.max) / 1_000_000_000, Double.greatestFiniteMagnitude])
+    func `large finite subprocess timeouts retain successful output`(timeout: Double) async throws {
+        let result = try await SubprocessRunner.run(
+            binary: "/bin/echo",
+            arguments: ["finished"],
+            environment: [:],
+            timeout: timeout,
+            label: "large timeout fixture")
+        #expect(result.stdout == "finished\n")
+    }
+
     @Test
     func `reads large stdout without deadlock`() async throws {
         let result = try await SubprocessRunner.run(
@@ -219,13 +230,19 @@ struct SubprocessRunnerTests {
         time.sleep(30)
         """
 
-        await #expect(throws: SubprocessRunnerError.self) {
-            try await SubprocessRunner.run(
+        do {
+            _ = try await SubprocessRunner.run(
                 binary: "/usr/bin/python3",
                 arguments: ["-c", script],
                 environment: environment,
-                timeout: 0.5,
+                // Python must start and fork before the timeout can exercise descendant cleanup.
+                // Even the loaded-runner budget stays well below the fixture's 30-second lifetime.
+                timeout: 3 * TestTimingBudget.slowdownFactor,
                 label: "escaped-descendant")
+            Issue.record("Expected the escaped-descendant timeout")
+        } catch let error as SubprocessRunnerError {
+            guard case let .timedOut(label) = error else { throw error }
+            #expect(label == "escaped-descendant")
         }
 
         let text = try String(contentsOf: childPIDFile, encoding: .utf8)

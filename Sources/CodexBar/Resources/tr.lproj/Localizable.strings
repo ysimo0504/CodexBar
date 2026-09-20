@@ -133,6 +133,10 @@
 "Cookie: …" = "Çerez: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Maliyet";
+"Token history" = "Token geçmişi";
+"Local token history · dollar costs unavailable" = "Yerel token geçmişi · dolar maliyetleri mevcut değil";
+"Partial local history · recorded token subtotal" = "Kısmi yerel geçmiş · kaydedilen token ara toplamı";
+"Local token history is unavailable or incomplete." = "Yerel token geçmişi mevcut değil veya eksik.";
 "Could not add Codex account" = "Codex hesabı eklenemedi";
 "Could not open Terminal for Gemini" = "Gemini için Terminal açılamadı";
 "Could not start claude /login" = "claude /login başlatılamadı";
@@ -224,6 +228,7 @@
 "No cost history data." = "Maliyet geçmişi verisi yok.";
 "No data available" = "Kullanılabilir veri yok";
 "No data yet" = "Henüz veri yok";
+"Workspaces" = "Çalışma Alanları";
 "No enabled providers available for Overview." = "Genel Bakış için etkin sağlayıcı yok.";
 "No providers selected" = "Sağlayıcı seçilmedi";
 "No token accounts yet." = "Henüz token hesabı yok.";
@@ -499,7 +504,6 @@
 "provider_accent_color_reset" = "Varsayılanı kullan";
 "quota_warnings_title" = "Kota uyarıları";
 "quota_warning_session" = "oturum";
-"quota_warning_session_capitalized" = "Oturum";
 "quota_warning_weekly" = "haftalık";
 "quota_warning_weekly_capitalized" = "Haftalık";
 "quota_warning_notification_title" = "%1$@ %2$@ kotası düşük";
@@ -564,6 +568,7 @@
 "hooks_any_provider" = "Herhangi bir sağlayıcı";
 "hooks_threshold" = "Şu kullanım düzeyinde tetikle: ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Çalıştırılabilir dosya";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argümanlar";
 "hooks_argument_placeholder" = "Argüman";
@@ -673,6 +678,9 @@
 "surprise_me_subtitle" = "Ajanlarınızın yukarıda biraz eğlenmesini istiyorsanız işaretleyin.";
 "hide_personal_info_title" = "Kişisel bilgileri gizle";
 "hide_personal_info_subtitle" = "Menü çubuğu ve menü arayüzünde e-posta adreslerini gizle.";
+"hide_cost_history_identity_subtitle" = "Kaydedilen verileri değiştirmeden maliyet geçmişindeki proje ve kaynak adlarını ve yollarını da gizler.";
+"Project %d" = "Proje %d";
+"Source %d" = "Kaynak %d";
 "show_provider_storage_usage_title" = "Sağlayıcı depolama kullanımını göster";
 "show_provider_storage_usage_subtitle" = "Menülerde yerel disk kullanımını göster. Bilinen sağlayıcıya ait yolları arka planda tarar.";
 "section_keychain_access" = "Anahtar Zinciri erişimi";
@@ -880,6 +888,12 @@
 "usage_percent_suffix_used" = "kullanıldı";
 "Store multiple DeepSeek API keys." = "Birden fazla DeepSeek API anahtarı depolayın.";
 "This week" = "Bu hafta";
+"Current window" = "Geçerli pencere";
+"Last week" = "Geçen hafta";
+"%d weeks ago" = "%d hafta önce";
+"Previous window" = "Önceki pencere";
+"%d windows ago" = "%d pencere önce";
+"Recent windows" = "Son pencereler";
 "Week" = "Hafta";
 "Month" = "Ay";
 "Models" = "Modeller";
@@ -940,6 +954,8 @@
 "Overage" = "Aşım";
 "Activity" = "Etkinlik";
 "Copied" = "Kopyalandı";
+"Managed by Homebrew" = "Homebrew tarafından yönetiliyor";
+"Copy update command" = "Güncelleme komutunu kopyala";
 "Copy error" = "Kopyalama hatası";
 "Copy path" = "Yolu kopyala";
 "Extra usage spent" = "Harcanan ek kullanım";
@@ -1427,6 +1443,33 @@
 "Cost today unavailable" = "Bugünkü maliyet: kullanılamıyor";
 "30-day cost unavailable" = "30 günlük maliyet: kullanılamıyor";
 "Resets" = "Sıfırlamalar";
+"codex_workspaces_title" = "Çalışma Alanları";
+"codex_workspaces_estimated_local_logs" = "Yerel Codex günlüklerinden tahmin edildi";
+"codex_workspaces_no_local_usage" = "Henüz yerel Codex kullanımı yok";
+"codex_workspaces_tokens" = "Tokenlar";
+"codex_workspaces_token_count_accessibility" = "%@ token";
+"codex_workspaces_estimated_cost_short" = "Tahm. maliyet";
+"codex_workspaces_estimated_cost_value" = "tahm. %@";
+"codex_workspaces_sessions" = "Oturumlar";
+"codex_workspaces_session_count" = "Oturumlar: %@";
+"codex_workspaces_top_model" = "En çok kullanılan model";
+"codex_workspaces_local_codex_chat" = "Yerel Codex sohbeti";
+"codex_workspaces_indexing_local_logs" = "Yerel Codex günlükleri dizine ekleniyor…";
+"codex_workspaces_failed_read_logs" = "Codex günlükleri okunamadı";
+"codex_workspaces_scanning_logs" = "Codex günlükleri taranıyor…";
+"codex_workspaces_indexing_projects" = "Projeler dizine ekleniyor…";
+"codex_workspaces_saving_project_index" = "Proje dizini kaydediliyor…";
+"codex_workspaces_cost_unavailable" = "Maliyet kullanılamıyor";
+"codex_workspaces_refresh_usage_data" = "Kullanım verilerini yenile";
+"codex_workspaces_retry" = "Tekrar dene";
+"codex_workspaces_partial_data" = "Kısmi veriler";
+"codex_workspaces_high_usage" = "Yüksek kullanım";
+"codex_workspaces_elevated_usage" = "Artmış kullanım";
+"codex_workspaces_normal_usage" = "Normal kullanım";
+"codex_workspaces_no_sessions" = "Bu çalışma alanında oturum yok";
+"codex_workspaces_session" = "Oturum";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_started" = "Başlatıldı";
 "Finish now" = "Şimdi tamamla";
 "Continue in background" = "Arka planda devam et";
 
@@ -1483,6 +1526,7 @@
 "Total usage" = "Toplam kullanım";
 "claude_oauth_keychain_access_revoked" = "Claude Anahtar Zinciri erişimi, Claude Code'un token yenilemesi nedeniyle iptal edildi. Erişimi yeniden vermek için Yenile'ye tıklayın veya Claude kullanım kaynağını CLI/Web olarak değiştirin.";
 "claude_showing_last_known_usage" = "Bilinen son kullanım gösteriliyor (yakalanma zamanı: %@).";
+"claude_limited_usage_detail" = "Kullanım ayrıntıları sınırlı";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Girdi";
@@ -1538,4 +1582,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "Oturum neredeyse tükendi";
 "menu_bar_layout_conditional_default_either_high" = "Oturum veya haftalık kullanım yükseldi";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Model haftasının %60'ından fazlası kullanıldı";
+"Visible usage items" = "Görünür kullanım öğeleri";
+"Restore Defaults" = "Varsayılanları Geri Yükle";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Bu sağlayıcının menüsünde, Ayarlar önizlemesinde ve Genel Bakış'ta hangi kullanım satırlarının görüneceğini seçin.";
+"%@ (unavailable)" = "%@ (kullanılamıyor)";
 "Spending cap, not balance" = "Harcama sınırı, bakiye değil";
+
+"Color Pace Indicator" = "Kullanım hızını renklendir";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Kullanım beklenen hızın gerisindeyse yeşil (rezerv); ilerisindeyse kırmızı (kotanın erken tükenme riski).";
+"%@ weekly" = "%@ haftalık";
+
+"agent_sessions_hide_unreachable_title" = "Erişilemeyen ana bilgisayarları gizle";
+"agent_sessions_hide_unreachable_subtitle" = "Oturumları alınamadığında ana bilgisayarları gizle.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Kullanım özetini paylaş…";
+"Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";
+"Incomplete" = "Eksik";
+"Est. subtotal (%@): %@" = "Tahmini ara toplam (%@): %@";
+"Excluded requests with missing final usage: %d" = "Nihai kullanım verileri eksik olduğu için hariç tutulan istekler: %d";
+
+"overview_layout_title" = "Genel Bakış düzeni";
+"overview_layout_subtitle" = "Genel Bakış’ın ne kadar bilgi göstereceğini seçin.";
+"overview_layout_detailed" = "Ayrıntılı";
+"overview_layout_compact" = "Kompakt";
+
+"section_widgets" = "Araç takımları";
+"account_widgets_title" = "Araç takımları için hesapları güncel tut";
+"account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";

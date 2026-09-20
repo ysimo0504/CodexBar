@@ -658,8 +658,10 @@ public struct OllamaUsageFetcher: Sendable {
 
             lines.append("")
             lines.append("Plan: \(snapshot.planName ?? "unknown")")
+            lines.append("Monthly: \(snapshot.monthlyUsedPercent?.description ?? "nil")%")
             lines.append("Session: \(snapshot.sessionUsedPercent?.description ?? "nil")%")
             lines.append("Weekly: \(snapshot.weeklyUsedPercent?.description ?? "nil")%")
+            lines.append("Monthly resetsAt: \(snapshot.monthlyResetsAt?.description ?? "nil")")
             lines.append("Session resetsAt: \(snapshot.sessionResetsAt?.description ?? "nil")")
             lines.append("Weekly resetsAt: \(snapshot.weeklyResetsAt?.description ?? "nil")")
 
@@ -855,6 +857,8 @@ public struct OllamaUsageFetcher: Sendable {
 
     private func logHTMLHints(html: String, logger: (String) -> Void) {
         logger("[ollama] HTML length: \(html.utf8.count) bytes")
+        logger("[ollama] Contains Included usage: \(html.contains("Included usage"))")
+        logger("[ollama] Contains Monthly usage: \(html.contains("Monthly usage"))")
         logger("[ollama] Contains Cloud Usage: \(html.contains("Cloud Usage"))")
         logger("[ollama] Contains Session usage: \(html.contains("Session usage"))")
         logger("[ollama] Contains Hourly usage: \(html.contains("Hourly usage"))")
@@ -909,24 +913,10 @@ public struct OllamaAPISettingsReader: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
         for key in self.apiKeyEnvironmentKeys {
-            guard let value = self.cleaned(environment[key]), !value.isEmpty else { continue }
+            guard let value = SettingsValue.cleaned(environment[key]) else { continue }
             return value
         }
         return nil
-    }
-
-    private static func cleaned(_ raw: String?) -> String? {
-        guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty
-        else {
-            return nil
-        }
-        if (value.hasPrefix("\"") && value.hasSuffix("\"")) ||
-            (value.hasPrefix("'") && value.hasSuffix("'"))
-        {
-            value = String(value.dropFirst().dropLast())
-        }
-        return value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 
@@ -988,7 +978,9 @@ public enum OllamaAPIUsageFetcher {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            throw OllamaUsageError.networkError(error.localizedDescription)
+            throw ProviderTransportError.preservingIdentity(
+                of: error,
+                describedBy: OllamaUsageError.networkError(error.localizedDescription))
         }
 
         switch response.statusCode {
@@ -1022,7 +1014,9 @@ public enum OllamaAPIUsageFetcher {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            throw OllamaUsageError.networkError(error.localizedDescription)
+            throw ProviderTransportError.preservingIdentity(
+                of: error,
+                describedBy: OllamaUsageError.networkError(error.localizedDescription))
         }
 
         switch response.statusCode {

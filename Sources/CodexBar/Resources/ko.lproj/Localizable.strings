@@ -45,6 +45,7 @@
 "hooks_any_provider" = "모든 공급자";
 "hooks_threshold" = "사용량 ≥ 에서 실행";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "실행 파일";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "인수";
 "hooks_argument_placeholder" = "인수";
@@ -149,6 +150,10 @@
 "Cookie: …" = "쿠키: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "비용";
+"Token history" = "토큰 기록";
+"Local token history · dollar costs unavailable" = "로컬 토큰 기록 · 달러 비용 정보 없음";
+"Partial local history · recorded token subtotal" = "불완전한 로컬 기록 · 기록된 토큰 소계";
+"Local token history is unavailable or incomplete." = "로컬 토큰 기록을 사용할 수 없거나 기록이 불완전합니다.";
 "Could not add Codex account" = "Codex 계정을 추가할 수 없음";
 "Could not open Terminal for Gemini" = "Gemini용 터미널을 열 수 없음";
 "Could not start claude /login" = "claude /login을 시작할 수 없음";
@@ -240,6 +245,7 @@
 "No cost history data." = "비용 기록 데이터가 없습니다.";
 "No data available" = "사용 가능한 데이터 없음";
 "No data yet" = "아직 데이터 없음";
+"Workspaces" = "작업 공간";
 "No enabled providers available for Overview." = "개요에 사용할 수 있는 공급자가 없습니다.";
 "No providers selected" = "선택된 공급자 없음";
 "No token accounts yet." = "아직 토큰 계정이 없습니다.";
@@ -510,7 +516,6 @@
 "provider_accent_color_reset" = "기본값 사용";
 "quota_warnings_title" = "할당량 경고";
 "quota_warning_session" = "세션";
-"quota_warning_session_capitalized" = "세션";
 "quota_warning_weekly" = "주간";
 "quota_warning_weekly_capitalized" = "주간";
 "quota_warning_notification_title" = "%1$@ %2$@ 할당량 부족";
@@ -655,6 +660,9 @@
 "surprise_me_subtitle" = "에이전트가 저 위에서 조금 즐기는 모습이 마음에 드는지 확인해 보세요.";
 "hide_personal_info_title" = "개인 정보 가리기";
 "hide_personal_info_subtitle" = "메뉴 막대와 메뉴 UI에서 이메일 주소를 가립니다.";
+"hide_cost_history_identity_subtitle" = "저장된 데이터를 변경하지 않고 비용 기록의 프로젝트 및 소스 이름과 경로도 숨깁니다.";
+"Project %d" = "프로젝트 %d";
+"Source %d" = "소스 %d";
 "show_provider_storage_usage_title" = "공급자 저장 공간 사용량 표시";
 "show_provider_storage_usage_subtitle" = "메뉴에 로컬 디스크 사용량을 표시합니다. 알려진 공급자 소유 경로를 백그라운드에서 스캔합니다.";
 "section_keychain_access" = "키체인 접근";
@@ -850,6 +858,12 @@
 "usage_percent_suffix_used" = "사용";
 "Store multiple DeepSeek API keys." = "여러 DeepSeek API 키를 저장합니다.";
 "This week" = "이번 주";
+"Current window" = "현재 구간";
+"Last week" = "지난주";
+"%d weeks ago" = "%d주 전";
+"Previous window" = "이전 구간";
+"%d windows ago" = "%d개 구간 전";
+"Recent windows" = "최근 구간";
 "Week" = "주";
 "Month" = "월";
 "Models" = "모델";
@@ -906,6 +920,8 @@
 "Overage" = "초과분";
 "Activity" = "활동";
 "Copied" = "복사됨";
+"Managed by Homebrew" = "Homebrew로 관리됨";
+"Copy update command" = "업데이트 명령 복사";
 "Copy error" = "오류 복사";
 "Copy path" = "경로 복사";
 "Extra usage spent" = "추가 사용 지출액";
@@ -1395,6 +1411,33 @@
 "Cost today unavailable" = "오늘 비용: 사용할 수 없음";
 "30-day cost unavailable" = "30일 비용: 사용할 수 없음";
 "Resets" = "재설정";
+"codex_workspaces_cost_unavailable" = "비용을 사용할 수 없음";
+"codex_workspaces_elevated_usage" = "증가한 사용량";
+"codex_workspaces_estimated_cost_short" = "예상 비용";
+"codex_workspaces_estimated_cost_value" = "예상 %@";
+"codex_workspaces_estimated_local_logs" = "로컬 Codex 로그에서 추정";
+"codex_workspaces_failed_read_logs" = "Codex 로그를 읽지 못했습니다";
+"codex_workspaces_high_usage" = "높은 사용량";
+"codex_workspaces_indexing_local_logs" = "로컬 Codex 로그 인덱싱 중…";
+"codex_workspaces_indexing_projects" = "프로젝트 인덱싱 중…";
+"codex_workspaces_local_codex_chat" = "로컬 Codex 채팅";
+"codex_workspaces_model" = "모델";
+"codex_workspaces_no_local_usage" = "아직 로컬 Codex 사용 내역이 없습니다";
+"codex_workspaces_no_sessions" = "이 작업 공간에 세션이 없습니다";
+"codex_workspaces_normal_usage" = "정상 사용량";
+"codex_workspaces_partial_data" = "일부 데이터";
+"codex_workspaces_refresh_usage_data" = "사용량 데이터 새로 고침";
+"codex_workspaces_retry" = "재시도";
+"codex_workspaces_saving_project_index" = "프로젝트 인덱스 저장 중…";
+"codex_workspaces_scanning_logs" = "Codex 로그 스캔 중…";
+"codex_workspaces_session" = "세션";
+"codex_workspaces_session_count" = "세션: %@";
+"codex_workspaces_sessions" = "세션";
+"codex_workspaces_started" = "시작됨";
+"codex_workspaces_title" = "작업 공간";
+"codex_workspaces_token_count_accessibility" = "%@개 토큰";
+"codex_workspaces_tokens" = "토큰";
+"codex_workspaces_top_model" = "상위 모델";
 "Finish now" = "지금 완료";
 "Continue in background" = "백그라운드에서 계속";
 
@@ -1451,6 +1494,7 @@
 "Total usage" = "총 사용량";
 "claude_oauth_keychain_access_revoked" = "Claude Code의 토큰 교체로 Claude 키체인 접근 권한이 취소되었습니다. 새로 고침을 클릭해 접근 권한을 다시 부여하거나 Claude 사용량 소스를 CLI/Web으로 전환하세요.";
 "claude_showing_last_known_usage" = "마지막으로 확인된 사용량을 표시 중입니다(캡처: %@).";
+"claude_limited_usage_detail" = "사용량 세부 정보가 제한적입니다";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1505,4 +1549,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "세션 거의 소진";
 "menu_bar_layout_conditional_default_either_high" = "세션 또는 주간 사용량 높음";
 "menu_bar_layout_conditional_default_scoped_weekly" = "모델별 주간 60% 초과 사용";
+"Visible usage items" = "표시할 사용량 항목";
+"Restore Defaults" = "기본값 복원";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "이 제공업체의 메뉴, 설정 미리보기 및 개요에 표시할 사용량 행을 선택합니다.";
+"%@ (unavailable)" = "%@(사용할 수 없음)";
 "Spending cap, not balance" = "지출 한도이며 잔액이 아닙니다";
+
+"Color Pace Indicator" = "사용 속도 색상 표시";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "사용량이 예상 속도보다 낮으면 초록색(여유), 높으면 빨간색(조기 소진 위험)으로 표시합니다.";
+"%@ weekly" = "%@ 주간";
+
+"agent_sessions_hide_unreachable_title" = "연결할 수 없는 호스트 숨기기";
+"agent_sessions_hide_unreachable_subtitle" = "세션을 가져오지 못한 호스트를 숨깁니다.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "사용량 개요 공유…";
+"Usage snapshot unavailable" = "사용량 개요를 사용할 수 없음";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar에서 공유할 사용량 개요를 준비하지 못했습니다. 사용량 및 지출을 새로 고친 후 다시 시도하세요.";
+"Incomplete" = "불완전";
+"Est. subtotal (%@): %@" = "예상 소계 (%@): %@";
+"Excluded requests with missing final usage: %d" = "최종 사용량이 없어 제외된 요청: %d";
+
+"overview_layout_title" = "개요 레이아웃";
+"overview_layout_subtitle" = "개요에 표시할 정보의 양을 선택합니다.";
+"overview_layout_detailed" = "자세히";
+"overview_layout_compact" = "간결";
+
+"section_widgets" = "위젯";
+"account_widgets_title" = "위젯의 계정을 최신 상태로 유지";
+"account_widgets_description" = "각 Account Usage 위젯에서 계정을 선택하세요. 제공업체당 최대 6개 계정을 새로 고칩니다.";

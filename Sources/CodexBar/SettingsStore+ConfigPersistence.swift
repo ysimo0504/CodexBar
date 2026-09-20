@@ -40,9 +40,6 @@ extension SettingsStore {
                 self?.reloadConfig(reason: "file-watch", origin: .localFile)
             }
         }
-        if let data = try? Data(contentsOf: self.configStore.fileURL) {
-            watcher.noteAppWrite(data: data)
-        }
         self.configFileWatcher = watcher
         watcher.start()
     }
@@ -72,15 +69,9 @@ extension SettingsStore {
             reason: "provider-\(provider.rawValue)",
             affectsBackgroundWork: affectsBackgroundWork)
         { config in
-            if let index = config.providers.firstIndex(where: { $0.id == provider.instanceID }) {
-                var entry = config.providers[index]
-                mutate(&entry)
-                config.providers[index] = entry
-            } else {
-                var entry = ProviderConfig(id: provider.instanceID)
-                mutate(&entry)
-                config.providers.append(entry)
-            }
+            var entry = config.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
+            mutate(&entry)
+            config.setProviderConfig(entry)
         }
     }
 
@@ -103,15 +94,9 @@ extension SettingsStore {
     {
         guard !self.configLoading else { return }
         var config = self.config
-        if let index = config.providers.firstIndex(where: { $0.id == provider.instanceID }) {
-            var entry = config.providers[index]
-            mutate(&entry)
-            config.providers[index] = entry
-        } else {
-            var entry = ProviderConfig(id: provider.instanceID)
-            mutate(&entry)
-            config.providers.append(entry)
-        }
+        var entry = config.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
+        mutate(&entry)
+        config.setProviderConfig(entry)
         self.config = config.normalized()
         self.updateProviderState(config: self.config)
         self.schedulePersistConfig()
@@ -157,8 +142,12 @@ extension SettingsStore {
             }
 
             for provider in UsageProvider.allCases where !seen.contains(provider.instanceID) {
+                seen.insert(provider.instanceID)
                 ordered.append(configsByID[provider.instanceID] ?? ProviderConfig(id: provider.instanceID))
             }
+
+            // A loaded plugin can become unavailable without losing its retained configuration.
+            ordered.append(contentsOf: config.providers.filter { !seen.contains($0.id) })
 
             config.providers = ordered
         }
@@ -218,6 +207,7 @@ extension SettingsStore {
 
     private static func orderIndependentConfigData(_ config: CodexBarConfig) -> Data? {
         var canonical = config.normalized()
+        canonical.providers = canonical.providers.map(\.fetchIdentityConfig)
         canonical.providers.sort { $0.id.rawValue < $1.id.rawValue }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
@@ -266,8 +256,9 @@ extension SettingsStore {
         if Self.isRunningTests {
             do {
                 let data = try self.configStore.encodedData(for: self.config)
-                self.configFileWatcher?.noteAppWrite(data: data)
-                try self.configStore.saveEncodedData(data)
+                try ConfigFileWatcher.withAppWrite(data, watcher: self.configFileWatcher) {
+                    try self.configStore.saveEncodedData(data)
+                }
             } catch {
                 CodexBarLog.logger(LogCategories.configStore).error("Failed to persist config: \(error)")
             }
@@ -286,14 +277,15 @@ extension SettingsStore {
             let data: Data
             do {
                 data = try store.encodedData(for: snapshot)
-                watcher?.noteAppWrite(data: data)
             } catch {
                 CodexBarLog.logger(LogCategories.configStore).error("Failed to encode config: \(error)")
                 return
             }
             let error: (any Error)? = await Task.detached(priority: .utility) {
                 do {
-                    try store.saveEncodedData(data)
+                    try ConfigFileWatcher.withAppWrite(data, watcher: watcher) {
+                        try store.saveEncodedData(data)
+                    }
                     return nil
                 } catch {
                     return error

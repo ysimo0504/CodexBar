@@ -55,13 +55,6 @@ private enum AntigravityUsagePool: Hashable {
         case .claudeGPT: "Claude and GPT models"
         }
     }
-
-    var sortRank: Int {
-        switch self {
-        case .geminiAI: 0
-        case .claudeGPT: 1
-        }
-    }
 }
 
 private struct AntigravityModelVersion: Comparable {
@@ -160,10 +153,8 @@ public struct AntigravityStatusSnapshot: Sendable {
             from: normalized,
             summaryCandidates: summaryCandidates,
             compactFallbackModelID: fallbackQuota?.modelId,
-            representedPools: Set([
-                primaryQuota.map { _ in AntigravityUsagePool.geminiAI },
-                secondaryQuota.map { _ in AntigravityUsagePool.claudeGPT },
-            ].compactMap(\.self)))
+            representedQuotas: [.geminiAI: primaryQuota, .claudeGPT: secondaryQuota].compactMapValues(\.self),
+            source: self.source)
 
         let identity = ProviderIdentitySnapshot(
             providerID: .antigravity,
@@ -651,10 +642,11 @@ public struct AntigravityStatusSnapshot: Sendable {
         from models: [AntigravityNormalizedModel],
         summaryCandidates: [AntigravityNormalizedModel],
         compactFallbackModelID: String?,
-        representedPools: Set<AntigravityUsagePool>) -> [NamedRateWindow]
+        representedQuotas: [AntigravityUsagePool: AntigravityModelQuota],
+        source: AntigravityModelQuotaSource) -> [NamedRateWindow]
     {
         let resetOnlyPoolWindows = [AntigravityUsagePool.geminiAI, .claudeGPT].compactMap { pool -> NamedRateWindow? in
-            guard !representedPools.contains(pool) else { return nil }
+            guard representedQuotas[pool] == nil else { return nil }
             let candidates = summaryCandidates.filter { Self.usagePool(for: $0) == pool }
             guard let resetOnly = candidates.first(where: { model in
                 model.quota.remainingFraction == nil &&
@@ -669,19 +661,26 @@ public struct AntigravityStatusSnapshot: Sendable {
                 usageKnown: false)
         }
 
-        let distinctWindows = Dictionary(grouping: models.filter {
-            $0.quota.modelId == compactFallbackModelID || Self.shouldShowDistinctExtraWindow($0)
-        }, by: { $0.quota.modelId.lowercased() })
+        let distinctWindows = Dictionary(grouping: models, by: { $0.quota.modelId.lowercased() })
             .values
             .compactMap { group -> AntigravityNormalizedModel? in
                 // Retired Flash mapping can collapse multiple wire ids to one canonical id;
                 // keep the most constrained (lowest remaining) to avoid duplicate windows.
                 group.min { lhs, rhs in
+                    if (lhs.quota.remainingFraction != nil) != (rhs.quota.remainingFraction != nil) {
+                        return lhs.quota.remainingFraction != nil
+                    }
                     if lhs.quota.remainingPercent != rhs.quota.remainingPercent {
                         return lhs.quota.remainingPercent < rhs.quota.remainingPercent
                     }
                     return lhs.quota.label < rhs.quota.label
                 }
+            }
+            .filter { model in
+                let pool = Self.usagePool(for: model) ?? (model.isAutocomplete ? .geminiAI : nil)
+                return model.quota.modelId == compactFallbackModelID || Self.shouldShowDistinctExtraWindow(
+                    model,
+                    poolQuota: source == .remote ? pool.flatMap { representedQuotas[$0] } : nil)
             }
             .sorted(by: Self.modelOrderPrecedes)
             .map { m in
@@ -694,34 +693,27 @@ public struct AntigravityStatusSnapshot: Sendable {
                     usageKnown: m.quota.remainingFraction != nil)
             }
 
-        return resetOnlyPoolWindows.sorted { lhs, rhs in
-            guard let lhsPool = Self.pool(forExtraWindowID: lhs.id),
-                  let rhsPool = Self.pool(forExtraWindowID: rhs.id)
-            else {
-                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
-            }
-            return lhsPool.sortRank < rhsPool.sortRank
-        } + distinctWindows
+        return resetOnlyPoolWindows + distinctWindows
     }
 
     private static func compactFallbackWindowID(modelID: String) -> String {
         "antigravity-compact-fallback-\(modelID)"
     }
 
-    private static func shouldShowDistinctExtraWindow(_ model: AntigravityNormalizedModel) -> Bool {
+    private static func shouldShowDistinctExtraWindow(
+        _ model: AntigravityNormalizedModel,
+        poolQuota: AntigravityModelQuota?) -> Bool
+    {
         guard !self.isSummaryCandidate(model) else { return false }
+        if let poolQuota, let reset = model.quota.resetTime,
+           reset == poolQuota.resetTime, model.quota.remainingFraction == poolQuota.remainingFraction
+        {
+            return false
+        }
         if model.quota.remainingFraction == nil {
             return model.quota.resetTime != nil || model.quota.resetDescription != nil
         }
         return model.quota.remainingPercent < 99.9
-    }
-
-    private static func pool(forExtraWindowID id: String) -> AntigravityUsagePool? {
-        switch id {
-        case AntigravityUsagePool.geminiAI.id: .geminiAI
-        case AntigravityUsagePool.claudeGPT.id: .claudeGPT
-        default: nil
-        }
     }
 
     private static func usagePool(for model: AntigravityNormalizedModel) -> AntigravityUsagePool? {
@@ -804,10 +796,10 @@ public enum AntigravityStatusProbeError: LocalizedError, Sendable, Equatable {
         let selected = expected ?? "the selected account"
         if let found {
             return "Antigravity local session is signed in as \(found), not \(selected); "
-                + "using the selected account's OAuth data instead."
+                + "local usage cannot be used for the selected account."
         }
         return "Antigravity local session did not report an account matching \(selected); "
-            + "using the selected account's OAuth data instead."
+            + "local usage cannot be used for the selected account."
     }
 
     private static func portDetectionDescription(_ message: String) -> String {
@@ -1052,12 +1044,19 @@ public struct AntigravityStatusProbe: Sendable {
 
     // MARK: - Port detection
 
+    struct ProcessEntry {
+        let pid: Int
+        let command: String
+        var executablePath: String?
+    }
+
     struct ProcessInfoResult {
         let pid: Int
         let extensionPort: Int?
         let extensionServerCSRFToken: String?
         let csrfToken: String
         let commandLine: String
+        var executablePath: String?
     }
 
     struct AntigravityConnectionEndpoint: Equatable {
@@ -1104,12 +1103,12 @@ public struct AntigravityStatusProbe: Sendable {
         scope: ProcessScope = .ideAndCLI) async throws -> [ProcessInfoResult]
     {
         #if canImport(Darwin)
-        let entries = DarwinProcessEnumerator.allPIDs().compactMap { pid -> (pid: Int, command: String)? in
+        let entries = DarwinProcessEnumerator.allPIDs().compactMap { pid -> ProcessEntry? in
             guard let executablePath = DarwinProcessEnumerator.executablePath(pid: pid),
                   DarwinProcessEnumerator.isAntigravityCandidatePath(executablePath)
             else { return nil }
             let command = DarwinProcessEnumerator.commandLine(pid: pid) ?? executablePath
-            return (Int(pid), command)
+            return ProcessEntry(pid: Int(pid), command: command, executablePath: executablePath)
         }
         return try self.processInfos(fromEntries: entries, scope: scope)
         #else
@@ -1140,15 +1139,15 @@ public struct AntigravityStatusProbe: Sendable {
         fromProcessListOutput output: String,
         scope: ProcessScope = .ideAndCLI) throws -> [ProcessInfoResult]
     {
-        let entries = output.split(separator: "\n").compactMap { line -> (pid: Int, command: String)? in
+        let entries = output.split(separator: "\n").compactMap { line -> ProcessEntry? in
             guard let match = Self.matchProcessLine(String(line)) else { return nil }
-            return (match.pid, match.command)
+            return ProcessEntry(pid: match.pid, command: match.command)
         }
         return try self.processInfos(fromEntries: entries, scope: scope)
     }
 
     static func processInfos(
-        fromEntries entries: [(pid: Int, command: String)],
+        fromEntries entries: [ProcessEntry],
         scope: ProcessScope = .ideAndCLI) throws -> [ProcessInfoResult]
     {
         var sawTokenlessIDE = false
@@ -1172,7 +1171,8 @@ public struct AntigravityStatusProbe: Sendable {
                 extensionPort: port,
                 extensionServerCSRFToken: extensionServerCSRFToken,
                 csrfToken: token,
-                commandLine: entry.command))
+                commandLine: entry.command,
+                executablePath: entry.executablePath))
         }
 
         if !results.isEmpty {

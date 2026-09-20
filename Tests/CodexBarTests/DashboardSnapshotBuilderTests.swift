@@ -133,8 +133,8 @@ struct DashboardSnapshotBuilderTests {
         #expect(object["generatedAt"] as? String == "2027-01-15T08:00:00Z")
     }
 
-    @Test
-    func `producer provider filter collects and returns exactly one row`() async throws {
+    @Test(arguments: [UsageProvider.codex, .antigravity])
+    func `producer provider filter collects and returns exactly one row`(provider: UsageProvider) async throws {
         let recorder = DashboardProviderSelectionRecorder()
         let producer = DashboardSnapshotProducer(
             collectUsage: { providers in
@@ -169,13 +169,13 @@ struct DashboardSnapshotBuilderTests {
             config: config,
             refreshInterval: 60,
             codexBarVersion: nil,
-            providers: [.codex])
+            providers: [provider])
         let object = try self.jsonObject(result.payload)
         let providers = try #require(object["providers"] as? [[String: Any]])
 
-        #expect(providers.compactMap { $0["id"] as? String } == ["codex"])
-        #expect(await recorder.usageProviders() == [.codex])
-        #expect(await recorder.costProviders() == [.codex])
+        #expect(providers.compactMap { $0["id"] as? String } == [provider.rawValue])
+        #expect(await recorder.usageProviders() == [provider])
+        #expect(await recorder.costProviders() == [provider])
     }
 
     @Test
@@ -298,6 +298,7 @@ struct DashboardSnapshotBuilderTests {
         #expect(object["staleAfterSeconds"] as? Int == 180)
         #expect(host["codexBarVersion"] as? String == "9.8.7")
         #expect(host["refreshIntervalSeconds"] as? Int == 60)
+        #expect(host["usageBarsShowUsed"] as? Bool == false)
 
         #expect(provider["id"] as? String == "codex")
         #expect(provider["name"] as? String == "Codex")
@@ -504,6 +505,282 @@ struct DashboardSnapshotBuilderTests {
     }
 
     @Test
+    func `dashboard provider freshness includes status updates`() throws {
+        let payload = ProviderPayload(
+            provider: .claude,
+            account: nil,
+            version: nil,
+            source: "status",
+            status: ProviderStatusPayload(
+                indicator: .none,
+                description: "Operational",
+                updatedAt: Date(timeIntervalSince1970: 30),
+                url: "https://status.anthropic.com"),
+            usage: nil,
+            credits: nil,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: nil)
+
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [payload],
+            costPayloads: [],
+            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            identityMode: .redacted,
+            generatedAt: Date(timeIntervalSince1970: 40),
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let object = try self.jsonObject(snapshot)
+        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+
+        #expect(provider["updatedAt"] as? String == "1970-01-01T00:00:30Z")
+    }
+
+    @Test
+    func `dashboard safely clamps extreme refresh intervals`() {
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [],
+            costPayloads: [],
+            config: CodexBarConfig(providers: []),
+            identityMode: .redacted,
+            generatedAt: Date(timeIntervalSince1970: 0),
+            refreshInterval: .greatestFiniteMagnitude,
+            codexBarVersion: nil)
+
+        #expect(snapshot.host.refreshIntervalSeconds == Int.max / 3)
+        #expect(snapshot.staleAfterSeconds == (Int.max / 3) * 3)
+    }
+
+    @Test
+    func `dashboard snapshot builder serializes usage bars show used host preference`() throws {
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [],
+            costPayloads: [],
+            config: CodexBarConfig(providers: []),
+            identityMode: .none,
+            generatedAt: Date(),
+            refreshInterval: 60,
+            codexBarVersion: "1.0.0",
+            usageBarsShowUsed: true)
+        let object = try self.jsonObject(snapshot)
+        let host = try #require(object["host"] as? [String: Any])
+        #expect(host["usageBarsShowUsed"] as? Bool == true)
+
+        let shellSnapshot = DashboardSnapshotBuilder.makeShellSnapshot(
+            config: CodexBarConfig(providers: []),
+            generatedAt: Date(),
+            refreshInterval: 60,
+            codexBarVersion: "1.0.0",
+            usageBarsShowUsed: true)
+        let shellObject = try self.jsonObject(shellSnapshot)
+        let shellHost = try #require(shellObject["host"] as? [String: Any])
+        #expect(shellHost["usageBarsShowUsed"] as? Bool == true)
+    }
+
+    @Test
+    func `dashboard daily cost uses generation day without update metadata`() throws {
+        let generatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let usage = self.identityPayload(email: "user@example.com")
+        let cost = CostPayload(
+            provider: "claude",
+            source: "local",
+            updatedAt: nil,
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            historyDays: 1,
+            last30DaysTokens: nil,
+            last30DaysCostUSD: nil,
+            daily: [CostDailyEntryPayload(
+                date: self.gregorianDayKey(generatedAt),
+                inputTokens: nil,
+                outputTokens: nil,
+                cacheReadTokens: nil,
+                cacheCreationTokens: nil,
+                totalTokens: nil,
+                costUSD: 2.5,
+                modelsUsed: nil,
+                modelBreakdowns: nil)],
+            totals: nil,
+            error: nil)
+
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [usage],
+            costPayloads: [cost],
+            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            identityMode: .redacted,
+            generatedAt: generatedAt,
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let object = try self.jsonObject(snapshot)
+        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+        let costObject = try #require(provider["cost"] as? [String: Any])
+
+        #expect(costObject["todayUSD"] as? Double == 2.5)
+    }
+
+    @Test
+    func `dashboard keeps incomplete only costs and scopes Today to its generation date`() throws {
+        let localDay = Calendar.current.startOfDay(for: ClaudeIncompleteUsagePropagationTests.now)
+        let priorDay = try #require(Calendar.current.date(byAdding: .day, value: -1, to: localDay))
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.calendar = .current
+        let entries = [ClaudeIncompleteUsagePropagationTests.entry(
+            day: dateFormatter.string(from: priorDay),
+            cost: nil,
+            tokens: nil,
+            incomplete: 2)]
+        let cost = CodexBarCLI.makeCostPayload(
+            provider: .claude,
+            snapshot: ClaudeIncompleteUsagePropagationTests.snapshot(entries: entries),
+            error: nil)
+        for (generatedAt, expectedTodayCount) in [(priorDay, 2), (localDay, 0)] {
+            let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+                usagePayloads: [self.identityPayload(email: "fixture@example.test")],
+                costPayloads: [cost],
+                config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+                identityMode: .redacted,
+                generatedAt: generatedAt,
+                refreshInterval: 60,
+                codexBarVersion: nil)
+            let object = try self.jsonObject(snapshot)
+            let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+            let payload = try #require(provider["cost"] as? [String: Any])
+            #expect(payload["todayUSD"] is NSNull)
+            #expect(payload["last30DaysUSD"] is NSNull)
+            #expect((payload["todayIncompleteRequestCount"] as? Int ?? 0) == expectedTodayCount)
+            #expect(payload["last30DaysIncompleteRequestCount"] as? Int == 2)
+        }
+    }
+
+    @Test
+    func `dashboard narrows amounts and exclusions together for histories longer than thirty days`() throws {
+        let now = ClaudeIncompleteUsagePropagationTests.now
+        let calendar = Calendar.current
+        let old = try #require(calendar.date(byAdding: .day, value: -45, to: now))
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.calendar = calendar
+        let cost = CodexBarCLI.makeCostPayload(
+            provider: .claude,
+            snapshot: .init(
+                sessionTokens: 500,
+                sessionCostUSD: 5,
+                last30DaysTokens: 1200,
+                last30DaysCostUSD: 12,
+                historyDays: 90,
+                daily: [
+                    ClaudeIncompleteUsagePropagationTests.entry(
+                        day: dateFormatter.string(from: old),
+                        cost: 7,
+                        tokens: 700,
+                        incomplete: 1),
+                    ClaudeIncompleteUsagePropagationTests.entry(
+                        day: dateFormatter.string(from: now),
+                        cost: 5,
+                        tokens: 500),
+                ],
+                updatedAt: now),
+            error: nil)
+        #expect(cost.last30DaysCostUSD == 12)
+        #expect(cost.incompleteRequestCount == 1)
+        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [self.identityPayload(email: "fixture@example.test")],
+            costPayloads: [cost],
+            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            identityMode: .redacted,
+            generatedAt: now,
+            refreshInterval: 60,
+            codexBarVersion: nil)
+        let projected = try #require(snapshot.providers.first?.cost)
+        #expect(projected.todayUSD == 5)
+        #expect(projected.last30DaysUSD == 5)
+        #expect(projected.todayIncompleteRequestCount == nil)
+        #expect(projected.last30DaysIncompleteRequestCount == nil)
+    }
+
+    private func identityPayload(email: String) -> ProviderPayload {
+        ProviderPayload(
+            provider: .claude,
+            account: nil,
+            version: nil,
+            source: "web",
+            status: nil,
+            usage: UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                tertiary: nil,
+                updatedAt: Date(timeIntervalSince1970: 0),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .claude,
+                    accountEmail: email,
+                    accountOrganization: nil,
+                    loginMethod: "pro")),
+            credits: nil,
+            antigravityPlanInfo: nil,
+            openaiDashboard: nil,
+            error: nil)
+    }
+
+    private func claudeSwapSnapshot(
+        number: Int,
+        email: String,
+        usageStatus: ClaudeSwapUsageStatus,
+        identityMode: DashboardIdentityMode) -> DashboardSnapshotPayload
+    {
+        // Provider-specific by design: these fixtures cover claude-swap labels without usage snapshots.
+        let account = ClaudeSwapAccountProjection.accountSnapshots(from: ClaudeSwapAccountList(
+            activeAccountNumber: number,
+            accounts: [ClaudeSwapAccountRow(
+                number: number,
+                email: email,
+                isActive: true,
+                usageStatus: usageStatus,
+                fiveHour: nil,
+                sevenDay: nil)]))
+        return DashboardSnapshotBuilder.makeSnapshot(
+            usagePayloads: [self.identityPayload(email: "ambient@example.com")],
+            costPayloads: [],
+            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
+            identityMode: identityMode,
+            generatedAt: Date(timeIntervalSince1970: 0),
+            refreshInterval: 60,
+            codexBarVersion: nil,
+            claudeSwap: DashboardClaudeSwapInput(accounts: account, adapterError: nil, weeklyWorkDays: nil))
+    }
+
+    private func firstClaudeSwapAccount(_ snapshot: DashboardSnapshotPayload) throws -> [String: Any] {
+        let object = try self.jsonObject(snapshot)
+        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
+        return try #require((provider["accounts"] as? [[String: Any]])?.first)
+    }
+
+    private func firstIdentity(_ snapshot: DashboardSnapshotPayload) -> [String: Any]? {
+        guard let object = try? self.jsonObject(snapshot) else { return nil }
+        let provider = (object["providers"] as? [[String: Any]])?.first
+        return provider?["identity"] as? [String: Any]
+    }
+
+    private func gregorianDayKey(_ date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0)
+    }
+
+    private func jsonObject(_ payload: some Encodable) throws -> [String: Any] {
+        let json = try #require(CodexBarCLI.encodeJSON(payload, pretty: false))
+        let data = try #require(json.data(using: .utf8))
+        return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+}
+
+extension DashboardSnapshotBuilderTests {
+    @Test
     func `dashboard provider errors are display safe without raw usage internals`() throws {
         let sensitiveMessage = """
         Authorization: Bearer provider-token; Cookie: session=provider-cookie;
@@ -632,173 +909,6 @@ struct DashboardSnapshotBuilderTests {
             let wire = try #require(CodexBarCLI.encodeJSON(snapshot, pretty: false))
             #expect(!wire.contains("private@example.com"))
         }
-    }
-
-    @Test
-    func `dashboard provider freshness includes status updates`() throws {
-        let payload = ProviderPayload(
-            provider: .claude,
-            account: nil,
-            version: nil,
-            source: "status",
-            status: ProviderStatusPayload(
-                indicator: .none,
-                description: "Operational",
-                updatedAt: Date(timeIntervalSince1970: 30),
-                url: "https://status.anthropic.com"),
-            usage: nil,
-            credits: nil,
-            antigravityPlanInfo: nil,
-            openaiDashboard: nil,
-            error: nil)
-
-        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
-            usagePayloads: [payload],
-            costPayloads: [],
-            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
-            identityMode: .redacted,
-            generatedAt: Date(timeIntervalSince1970: 40),
-            refreshInterval: 60,
-            codexBarVersion: nil)
-        let object = try self.jsonObject(snapshot)
-        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
-
-        #expect(provider["updatedAt"] as? String == "1970-01-01T00:00:30Z")
-    }
-
-    @Test
-    func `dashboard safely clamps extreme refresh intervals`() {
-        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
-            usagePayloads: [],
-            costPayloads: [],
-            config: CodexBarConfig(providers: []),
-            identityMode: .redacted,
-            generatedAt: Date(timeIntervalSince1970: 0),
-            refreshInterval: .greatestFiniteMagnitude,
-            codexBarVersion: nil)
-
-        #expect(snapshot.host.refreshIntervalSeconds == Int.max / 3)
-        #expect(snapshot.staleAfterSeconds == (Int.max / 3) * 3)
-    }
-
-    @Test
-    func `dashboard daily cost uses generation day without update metadata`() throws {
-        let generatedAt = Date(timeIntervalSince1970: 1_800_000_000)
-        let usage = self.identityPayload(email: "user@example.com")
-        let cost = CostPayload(
-            provider: "claude",
-            source: "local",
-            updatedAt: nil,
-            sessionTokens: nil,
-            sessionCostUSD: nil,
-            historyDays: 1,
-            last30DaysTokens: nil,
-            last30DaysCostUSD: nil,
-            daily: [CostDailyEntryPayload(
-                date: self.gregorianDayKey(generatedAt),
-                inputTokens: nil,
-                outputTokens: nil,
-                cacheReadTokens: nil,
-                cacheCreationTokens: nil,
-                totalTokens: nil,
-                costUSD: 2.5,
-                modelsUsed: nil,
-                modelBreakdowns: nil)],
-            totals: nil,
-            error: nil)
-
-        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
-            usagePayloads: [usage],
-            costPayloads: [cost],
-            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
-            identityMode: .redacted,
-            generatedAt: generatedAt,
-            refreshInterval: 60,
-            codexBarVersion: nil)
-        let object = try self.jsonObject(snapshot)
-        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
-        let costObject = try #require(provider["cost"] as? [String: Any])
-
-        #expect(costObject["todayUSD"] as? Double == 2.5)
-    }
-
-    private func identityPayload(email: String) -> ProviderPayload {
-        ProviderPayload(
-            provider: .claude,
-            account: nil,
-            version: nil,
-            source: "web",
-            status: nil,
-            usage: UsageSnapshot(
-                primary: nil,
-                secondary: nil,
-                tertiary: nil,
-                updatedAt: Date(timeIntervalSince1970: 0),
-                identity: ProviderIdentitySnapshot(
-                    providerID: .claude,
-                    accountEmail: email,
-                    accountOrganization: nil,
-                    loginMethod: "pro")),
-            credits: nil,
-            antigravityPlanInfo: nil,
-            openaiDashboard: nil,
-            error: nil)
-    }
-
-    private func claudeSwapSnapshot(
-        number: Int,
-        email: String,
-        usageStatus: ClaudeSwapUsageStatus,
-        identityMode: DashboardIdentityMode) -> DashboardSnapshotPayload
-    {
-        // Provider-specific by design: these fixtures cover claude-swap labels without usage snapshots.
-        let account = ClaudeSwapAccountProjection.accountSnapshots(from: ClaudeSwapAccountList(
-            activeAccountNumber: number,
-            accounts: [ClaudeSwapAccountRow(
-                number: number,
-                email: email,
-                isActive: true,
-                usageStatus: usageStatus,
-                fiveHour: nil,
-                sevenDay: nil)]))
-        return DashboardSnapshotBuilder.makeSnapshot(
-            usagePayloads: [self.identityPayload(email: "ambient@example.com")],
-            costPayloads: [],
-            config: CodexBarConfig(providers: [ProviderConfig(id: .claude, enabled: true)]),
-            identityMode: identityMode,
-            generatedAt: Date(timeIntervalSince1970: 0),
-            refreshInterval: 60,
-            codexBarVersion: nil,
-            claudeSwap: DashboardClaudeSwapInput(accounts: account, adapterError: nil, weeklyWorkDays: nil))
-    }
-
-    private func firstClaudeSwapAccount(_ snapshot: DashboardSnapshotPayload) throws -> [String: Any] {
-        let object = try self.jsonObject(snapshot)
-        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
-        return try #require((provider["accounts"] as? [[String: Any]])?.first)
-    }
-
-    private func firstIdentity(_ snapshot: DashboardSnapshotPayload) -> [String: Any]? {
-        guard let object = try? self.jsonObject(snapshot) else { return nil }
-        let provider = (object["providers"] as? [[String: Any]])?.first
-        return provider?["identity"] as? [String: Any]
-    }
-
-    private func gregorianDayKey(_ date: Date) -> String {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        return String(
-            format: "%04d-%02d-%02d",
-            components.year ?? 0,
-            components.month ?? 0,
-            components.day ?? 0)
-    }
-
-    private func jsonObject(_ payload: some Encodable) throws -> [String: Any] {
-        let json = try #require(CodexBarCLI.encodeJSON(payload, pretty: false))
-        let data = try #require(json.data(using: .utf8))
-        return try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     }
 }
 

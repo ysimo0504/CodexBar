@@ -133,6 +133,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "Przepływ urządzenia Copilot";
 "Cost" = "Koszt";
+"Token history" = "Historia tokenów";
+"Local token history · dollar costs unavailable" = "Lokalna historia tokenów · koszty w dolarach niedostępne";
+"Partial local history · recorded token subtotal" = "Częściowa historia lokalna · suma zarejestrowanych tokenów";
+"Local token history is unavailable or incomplete." = "Lokalna historia tokenów jest niedostępna lub niepełna.";
 "Could not add Codex account" = "Nie udało się dodać konta Codex";
 "Could not open Terminal for Gemini" = "Nie udało się otworzyć Terminala dla Gemini";
 "Could not start claude /login" = "Nie udało się uruchomić `claude /login`";
@@ -224,6 +228,7 @@
 "No cost history data." = "Brak danych historii kosztów.";
 "No data available" = "Brak dostępnych danych";
 "No data yet" = "Brak danych";
+"Workspaces" = "Obszary robocze";
 "No enabled providers available for Overview." = "Brak włączonych dostawców dostępnych dla Przeglądu.";
 "No providers selected" = "Nie wybrano dostawców";
 "No token accounts yet." = "Brak jeszcze kont tokenów.";
@@ -501,7 +506,6 @@
 "provider_accent_color_reset" = "Użyj domyślnego";
 "quota_warnings_title" = "Ostrzeżenia limitu";
 "quota_warning_session" = "sesja";
-"quota_warning_session_capitalized" = "Sesja";
 "quota_warning_weekly" = "tydzień";
 "quota_warning_weekly_capitalized" = "Tydzień";
 "quota_warning_notification_title" = "Niski limit %1$@ (%2$@)";
@@ -566,6 +570,7 @@
 "hooks_any_provider" = "Dowolny dostawca";
 "hooks_threshold" = "Uruchom przy użyciu ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Plik wykonywalny";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argumenty";
 "hooks_argument_placeholder" = "Argument";
@@ -675,6 +680,9 @@
 "surprise_me_subtitle" = "Sprawdź, czy lubisz, gdy twoi agenci trochę się tam bawią.";
 "hide_personal_info_title" = "Ukryj dane osobowe";
 "hide_personal_info_subtitle" = "Ukrywa adresy e-mail na pasku menu i w interfejsie menu.";
+"hide_cost_history_identity_subtitle" = "Ukrywa też nazwy i ścieżki projektów oraz źródeł w historii kosztów, bez zmiany zapisanych danych.";
+"Project %d" = "Projekt %d";
+"Source %d" = "Źródło %d";
 "show_provider_storage_usage_title" = "Pokaż użycie dysku dostawców";
 "show_provider_storage_usage_subtitle" = "Pokazuje lokalne zużycie dysku w menu. Skanuje znane ścieżki dostawców w tle.";
 "section_keychain_access" = "Dostęp do pęku kluczy";
@@ -886,6 +894,12 @@
 "usage_percent_suffix_used" = "wykorzystano";
 "Store multiple DeepSeek API keys." = "Przechowuj wiele kluczy API DeepSeek.";
 "This week" = "Ten tydzień";
+"Current window" = "Bieżące okno";
+"Last week" = "Zeszły tydzień";
+"%d weeks ago" = "%d tyg. temu";
+"Previous window" = "Poprzednie okno";
+"%d windows ago" = "%d okna temu";
+"Recent windows" = "Ostatnie okna";
 "Week" = "Tydzień";
 "Month" = "Miesiąc";
 "Models" = "Modele";
@@ -946,6 +960,8 @@
 "Overage" = "Nadwyżka";
 "Activity" = "Aktywność";
 "Copied" = "Skopiowano";
+"Managed by Homebrew" = "Zarządzane przez Homebrew";
+"Copy update command" = "Kopiuj polecenie aktualizacji";
 "Copy error" = "Błąd kopiowania";
 "Copy path" = "Skopiuj ścieżkę";
 "Extra usage spent" = "Wydane dodatkowe użycie";
@@ -1429,6 +1445,33 @@
 "Cost today unavailable" = "Koszt dzisiaj: Niedostępne";
 "30-day cost unavailable" = "Koszt 30 dni: Niedostępne";
 "Resets" = "Resety";
+"codex_workspaces_title" = "Obszary robocze";
+"codex_workspaces_estimated_local_logs" = "Oszacowano na podstawie lokalnych dzienników Codex";
+"codex_workspaces_no_local_usage" = "Brak lokalnego użycia Codex";
+"codex_workspaces_tokens" = "Tokeny";
+"codex_workspaces_token_count_accessibility" = "%@ tokenów";
+"codex_workspaces_estimated_cost_short" = "Szac. koszt";
+"codex_workspaces_estimated_cost_value" = "szac. %@";
+"codex_workspaces_sessions" = "Sesje";
+"codex_workspaces_session_count" = "Sesje: %@";
+"codex_workspaces_top_model" = "Najczęstszy model";
+"codex_workspaces_local_codex_chat" = "Lokalny czat Codex";
+"codex_workspaces_indexing_local_logs" = "Indeksowanie lokalnych dzienników Codex…";
+"codex_workspaces_failed_read_logs" = "Nie udało się odczytać dzienników Codex";
+"codex_workspaces_scanning_logs" = "Skanowanie dzienników Codex…";
+"codex_workspaces_indexing_projects" = "Indeksowanie projektów…";
+"codex_workspaces_saving_project_index" = "Zapisywanie indeksu projektów…";
+"codex_workspaces_cost_unavailable" = "Koszt niedostępny";
+"codex_workspaces_refresh_usage_data" = "Odśwież dane użycia";
+"codex_workspaces_retry" = "Spróbuj ponownie";
+"codex_workspaces_partial_data" = "Dane częściowe";
+"codex_workspaces_high_usage" = "Wysokie użycie";
+"codex_workspaces_elevated_usage" = "Podwyższone użycie";
+"codex_workspaces_normal_usage" = "Normalne użycie";
+"codex_workspaces_no_sessions" = "Brak sesji w tym obszarze roboczym";
+"codex_workspaces_session" = "Sesja";
+"codex_workspaces_model" = "Model";
+"codex_workspaces_started" = "Rozpoczęto";
 "Finish now" = "Zakończ teraz";
 "Continue in background" = "Kontynuuj w tle";
 
@@ -1485,6 +1528,7 @@
 "Total usage" = "Łączne użycie";
 "claude_oauth_keychain_access_revoked" = "Dostęp do pęku kluczy Claude został cofnięty wskutek rotacji tokenu przez Claude Code. Kliknij Odśwież, aby ponownie przyznać dostęp, albo przełącz źródło użycia Claude na CLI/Web.";
 "claude_showing_last_known_usage" = "Wyświetlane jest ostatnie znane użycie zarejestrowane %@.";
+"claude_limited_usage_detail" = "Mniej szczegółowe dane o zużyciu";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1539,4 +1583,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "Sesja prawie wyczerpana";
 "menu_bar_layout_conditional_default_either_high" = "Sesja lub tydzień na wysokim poziomie";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Tydzień modelu powyżej 60% zużycia";
+"Visible usage items" = "Widoczne elementy użycia";
+"Restore Defaults" = "Przywróć domyślne";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wybierz wiersze użycia wyświetlane w menu tego dostawcy, podglądzie ustawień i przeglądzie.";
+"%@ (unavailable)" = "%@ (niedostępne)";
 "Spending cap, not balance" = "Limit wydatków, nie saldo";
+
+"Color Pace Indicator" = "Koloruj tempo zużycia";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Zielony, gdy zużycie jest wolniejsze od oczekiwanego (rezerwa); czerwony, gdy jest szybsze (ryzyko wcześniejszego wyczerpania limitu).";
+"%@ weekly" = "%@ tygodniowo";
+
+"agent_sessions_hide_unreachable_title" = "Ukryj nieosiągalne hosty";
+"agent_sessions_hide_unreachable_subtitle" = "Ukryj hosty, gdy pobieranie ich sesji się nie powiedzie.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Udostępnij podsumowanie użycia…";
+"Usage snapshot unavailable" = "Podsumowanie użycia niedostępne";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar nie może przygotować podsumowania użycia do udostępnienia. Odśwież Zużycie i wydatki, a następnie spróbuj ponownie.";
+"Incomplete" = "Niekompletne";
+"Est. subtotal (%@): %@" = "Szacowana suma częściowa (%@): %@";
+"Excluded requests with missing final usage: %d" = "Wykluczone żądania bez końcowych danych o użyciu: %d";
+
+"overview_layout_title" = "Układ Przeglądu";
+"overview_layout_subtitle" = "Wybierz, ile informacji ma wyświetlać Przegląd.";
+"overview_layout_detailed" = "Szczegółowy";
+"overview_layout_compact" = "Kompaktowy";
+
+"section_widgets" = "Widżety";
+"account_widgets_title" = "Aktualizuj konta dla widżetów";
+"account_widgets_description" = "Wybierz konto w każdym widżecie Account Usage. Odświeża do sześciu kont na dostawcę.";

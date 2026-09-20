@@ -45,6 +45,7 @@
 "hooks_any_provider" = "Beliebiger Anbieter";
 "hooks_threshold" = "Auslösen bei Nutzung ≥";
 "hooks_threshold_placeholder" = "90";
+"hooks_executable" = "Ausführbare Datei";
 "hooks_executable_placeholder" = "/usr/local/bin/my-command";
 "hooks_arguments_placeholder" = "Argumente";
 "hooks_argument_placeholder" = "Argument";
@@ -149,6 +150,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Kosten";
+"Token history" = "Token-Verlauf";
+"Local token history · dollar costs unavailable" = "Lokaler Token-Verlauf · Dollar-Kosten nicht verfügbar";
+"Partial local history · recorded token subtotal" = "Unvollständiger lokaler Verlauf · erfasste Token-Zwischensumme";
+"Local token history is unavailable or incomplete." = "Der lokale Token-Verlauf ist nicht verfügbar oder unvollständig.";
 "Could not add Codex account" = "Codex-Konto konnte nicht hinzugefügt werden";
 "Could not open Terminal for Gemini" = "Terminal für Gemini konnte nicht geöffnet werden";
 "Could not start claude /login" = "Claude /login konnte nicht gestartet werden";
@@ -237,6 +242,7 @@
 "No cost history data." = "Keine Daten zur Kostenhistorie.";
 "No data available" = "Keine Daten verfügbar";
 "No data yet" = "Noch keine Daten";
+"Workspaces" = "Arbeitsbereiche";
 "No enabled providers available for Overview." = "Für die Übersicht sind keine aktivierten Anbieter verfügbar.";
 "No providers selected" = "Keine Anbieter ausgewählt";
 "No token accounts yet." = "Noch keine Token-Konten.";
@@ -512,7 +518,6 @@
 "provider_accent_color_reset" = "Standard verwenden";
 "quota_warnings_title" = "Kontingentwarnungen";
 "quota_warning_session" = "Sitzung";
-"quota_warning_session_capitalized" = "Sitzung";
 "quota_warning_weekly" = "wöchentlich";
 "quota_warning_weekly_capitalized" = "Wöchentlich";
 "quota_warning_notification_title" = "%1$@ %2$@ Kontingent niedrig";
@@ -665,6 +670,9 @@
 "surprise_me_subtitle" = "Prüfen Sie, ob Sie möchten, dass Ihre Agenten dort oben Spaß haben.";
 "hide_personal_info_title" = "Persönliche Informationen ausblenden";
 "hide_personal_info_subtitle" = "Verdecken Sie E-Mail-Adressen in der Menüleiste und der Menü-Benutzeroberfläche.";
+"hide_cost_history_identity_subtitle" = "Blendet auch Projekt- und Quellnamen sowie Pfade im Kostenverlauf aus, ohne gespeicherte Daten zu ändern.";
+"Project %d" = "Projekt %d";
+"Source %d" = "Quelle %d";
 "show_provider_storage_usage_title" = "Speichernutzung des Anbieters anzeigen";
 "show_provider_storage_usage_subtitle" = "Zeigen Sie die lokale Festplattennutzung in Menüs an. Scannt bekannte anbietereigene Pfade im Hintergrund.";
 "section_keychain_access" = "Schlüsselbundzugriff";
@@ -876,6 +884,12 @@
 "usage_percent_suffix_used" = "verbraucht";
 "Store multiple DeepSeek API keys." = "Speichern Sie mehrere DeepSeek-API-Schlüssel.";
 "This week" = "Diese Woche";
+"Current window" = "Aktuelles Zeitfenster";
+"Last week" = "Letzte Woche";
+"%d weeks ago" = "vor %d Wochen";
+"Previous window" = "Vorheriges Zeitfenster";
+"%d windows ago" = "vor %d Zeitfenstern";
+"Recent windows" = "Letzte Zeitfenster";
 "Week" = "Woche";
 "Month" = "Monat";
 "Models" = "Modelle";
@@ -935,6 +949,8 @@
 "Overage" = "Überschreitung";
 "Activity" = "Aktivität";
 "Copied" = "Kopiert";
+"Managed by Homebrew" = "Von Homebrew verwaltet";
+"Copy update command" = "Aktualisierungsbefehl kopieren";
 "Copy error" = "Kopierfehler";
 "Copy path" = "Pfad kopieren";
 "Extra usage spent" = "Zusätzliche Nutzung aufgewendet";
@@ -1426,6 +1442,33 @@
 "Cost today unavailable" = "Kosten heute: Nicht verfügbar";
 "30-day cost unavailable" = "Kosten 30 Tage: Nicht verfügbar";
 "Resets" = "Zurücksetzungen";
+"codex_workspaces_cost_unavailable" = "Kosten nicht verfügbar";
+"codex_workspaces_elevated_usage" = "Erhöhte Nutzung";
+"codex_workspaces_estimated_cost_short" = "Gesch. Kosten";
+"codex_workspaces_estimated_cost_value" = "gesch. %@";
+"codex_workspaces_estimated_local_logs" = "Geschätzt anhand lokaler Codex-Protokolle";
+"codex_workspaces_failed_read_logs" = "Codex-Protokolle konnten nicht gelesen werden";
+"codex_workspaces_high_usage" = "Hohe Nutzung";
+"codex_workspaces_indexing_local_logs" = "Lokale Codex-Protokolle werden indiziert…";
+"codex_workspaces_indexing_projects" = "Projekte werden indiziert…";
+"codex_workspaces_local_codex_chat" = "Lokaler Codex-Chat";
+"codex_workspaces_model" = "Modell";
+"codex_workspaces_no_local_usage" = "Noch keine lokale Codex-Nutzung";
+"codex_workspaces_no_sessions" = "Keine Sitzungen in diesem Arbeitsbereich";
+"codex_workspaces_normal_usage" = "Normale Nutzung";
+"codex_workspaces_partial_data" = "Unvollständige Daten";
+"codex_workspaces_refresh_usage_data" = "Nutzungsdaten aktualisieren";
+"codex_workspaces_retry" = "Wiederholen";
+"codex_workspaces_saving_project_index" = "Projektindex wird gespeichert…";
+"codex_workspaces_scanning_logs" = "Codex-Protokolle werden durchsucht…";
+"codex_workspaces_session" = "Sitzung";
+"codex_workspaces_session_count" = "Sitzungen: %@";
+"codex_workspaces_sessions" = "Sitzungen";
+"codex_workspaces_started" = "Gestartet";
+"codex_workspaces_title" = "Arbeitsbereiche";
+"codex_workspaces_token_count_accessibility" = "%@ Token";
+"codex_workspaces_tokens" = "Token";
+"codex_workspaces_top_model" = "Häufigstes Modell";
 "Finish now" = "Jetzt abschließen";
 "Continue in background" = "Im Hintergrund fortfahren";
 
@@ -1482,6 +1525,7 @@
 "Total usage" = "Gesamtnutzung";
 "claude_oauth_keychain_access_revoked" = "Der Zugriff auf den Claude-Schlüsselbund wurde durch die Token-Rotation von Claude Code widerrufen. Klicken Sie auf „Aktualisieren“, um den Zugriff erneut zu gewähren, oder stellen Sie die Claude-Nutzungsquelle auf CLI/Web um.";
 "claude_showing_last_known_usage" = "Letzte bekannte Nutzung wird angezeigt (erfasst: %@).";
+"claude_limited_usage_detail" = "Eingeschränkte Nutzungsdetails";
 /* Spend dashboard cost analysis */
 "90d" = "90d";
 "Input" = "Input";
@@ -1536,4 +1580,32 @@
 "menu_bar_layout_conditional_default_session_spent" = "Sitzung fast aufgebraucht";
 "menu_bar_layout_conditional_default_either_high" = "Sitzung oder Woche läuft hoch";
 "menu_bar_layout_conditional_default_scoped_weekly" = "Modellfenster über 60 % genutzt";
+"Visible usage items" = "Sichtbare Nutzungselemente";
+"Restore Defaults" = "Standardeinstellungen wiederherstellen";
+"Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wähle aus, welche Nutzungszeilen im Menü dieses Anbieters, in der Einstellungsvorschau und in der Übersicht angezeigt werden.";
+"%@ (unavailable)" = "%@ (nicht verfügbar)";
 "Spending cap, not balance" = "Ausgabenlimit, kein Guthaben";
+
+"Color Pace Indicator" = "Nutzungstempo einfärben";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Grün bei langsamerem Verbrauch als erwartet (Reserve); Rot bei schnellerem Verbrauch (Risiko einer vorzeitigen Ausschöpfung).";
+"%@ weekly" = "%@ wöchentlich";
+
+"agent_sessions_hide_unreachable_title" = "Nicht erreichbare Hosts ausblenden";
+"agent_sessions_hide_unreachable_subtitle" = "Hosts ausblenden, wenn ihre Sitzungen nicht abgerufen werden können.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Nutzungsübersicht teilen…";
+"Usage snapshot unavailable" = "Nutzungsübersicht nicht verfügbar";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar konnte keine teilbare Nutzungsübersicht erstellen. Aktualisieren Sie „Nutzung & Ausgaben“ und versuchen Sie es erneut.";
+"Incomplete" = "Unvollständig";
+"Est. subtotal (%@): %@" = "Geschätzte Zwischensumme (%@): %@";
+"Excluded requests with missing final usage: %d" = "Ausgeschlossene Anfragen ohne abschließende Nutzungsdaten: %d";
+
+"overview_layout_title" = "Übersichtslayout";
+"overview_layout_subtitle" = "Wählen Sie aus, wie viele Informationen die Übersicht anzeigt.";
+"overview_layout_detailed" = "Detailliert";
+"overview_layout_compact" = "Kompakt";
+
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Konten für Widgets aktuell halten";
+"account_widgets_description" = "Wähle in jedem Account Usage-Widget ein Konto aus. Aktualisiert bis zu sechs Konten pro Anbieter.";

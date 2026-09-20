@@ -27,8 +27,7 @@ public enum OpenCodeGoProviderDescriptor {
         ProviderDescriptor(
             id: .opencodego,
             menuBarMetrics: ProviderMenuBarMetricCapabilities(
-                supported: [.automatic, .primary, .secondary, .tertiary],
-                tertiaryRequiresWindow: true),
+                supported: [.automatic, .primary, .secondary, .tertiary]),
             settingsSection: .init(
                 OpenCodeGoProviderSettingsKey.self,
                 cookieSettings: { settings in
@@ -80,7 +79,9 @@ public enum OpenCodeGoProviderDescriptor {
                 resetWindowPace: .windowDuration(minutes: ProviderPaceCapability.monthlyWindowSentinelMinutes),
                 inferredMonthlyDuration: .windowDuration(minutes: ProviderPaceCapability.monthlyWindowSentinelMinutes),
                 primary: .session(maximumMinutes: 300),
-                secondary: .weekly),
+                secondary: .weekly,
+                // Device-local costs cannot establish the account's quota usage or billing-cycle boundaries.
+                allowsEstimatedUsage: false),
             history: .alwaysTracked,
             presentation: ProviderUsagePresentation(
                 costPresenter: { snapshot in
@@ -404,8 +405,12 @@ struct OpenCodeGoAPIUsageFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
-        if error is CancellationError { return false }
-        if let urlError = error as? URLError, urlError.code == .cancelled { return false }
+        if error is CancellationError {
+            return false
+        }
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return false
+        }
         return true
     }
 }

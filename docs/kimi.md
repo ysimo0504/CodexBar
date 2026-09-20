@@ -18,7 +18,10 @@ Code subscription credentials.
 
 - Displays weekly request quota (from membership tier)
 - Shows current 5-hour rate limit usage
+- Displays membership from the API/CLI usage response, with the active web subscription title as a fallback
+- Detects the installed Kimi CLI version, including standalone installs outside the GUI app PATH
 - Enriches Code API/CLI usage with the monthly membership pool when a web session is available
+- Automatic menu-bar usage prioritizes an exhausted monthly Total usage pool over reset Code windows; explicit window selections remain authoritative
 - API-key, Kimi Code CLI, automatic cookie, and manual cookie authentication methods
 - Automatic refresh countdown
 
@@ -44,6 +47,15 @@ CodexBar calls `GET https://api.kimi.com/coding/v1/usages` with the API key. Set
 `KIMI_CODE_BASE_URL` only when testing a compatible HTTPS proxy or alternate host with an explicit API key.
 CodexBar never forwards a Kimi Code CLI credential to an endpoint override.
 
+Both the older count-based response and the newer `usages` ratio pools are supported. Ratio pools take
+precedence for the 5-hour, weekly, and monthly Total usage windows they provide. Missing windows stay
+absent; percentages retain the API's precision and do not imply request counts. The monthly Total usage
+pool is available directly from the Code API, without requiring browser authentication, and optional web
+enrichment cannot replace it. Legacy rate-limit counts remain available when no 5-hour ratio is reported.
+For mixed legacy responses with a reliable weekly count and no monthly ratio pool, a zero 5-hour or
+weekly ratio falls back to a populated count for the same duration and reset time (within two seconds).
+Nonzero ratios and monthly-pool responses keep their precedence; mismatched reset periods never borrow counts.
+
 ### Method 2: Kimi Code CLI
 
 If you are signed in with the official Kimi Code CLI, Auto mode can reuse its fresh access token from
@@ -66,6 +78,14 @@ reuse; use an explicit API key for endpoint-override testing.
 2. Set "Cookie source" to "Automatic"
 3. Enable the Kimi provider toggle
 4. CodexBar will automatically find your session
+
+Automatic mode prefers a usable Kimi Desktop cookie. Expired desktop JWTs are skipped; if the server
+rejects a desktop session, the Web source continues through browser profiles instead of stopping.
+Explicit manual tokens remain authoritative. API-key and CLI quota responses include the membership level, so displaying the tier does not require
+browser access. A web session can supply a subscription title when the usage response omits membership;
+a membership lookup failure does not fail the quota query. Quota statistics and the optional plan title
+load independently within a shared two-second enrichment budget; a slow title cannot discard completed
+monthly or Code 7-day statistics. Cancellation stops automatic retries before further browser reads.
 
 **Note**: Requires Full Disk Access to read browser cookies (System Settings → Privacy & Security → Full Disk Access → CodexBar).
 
